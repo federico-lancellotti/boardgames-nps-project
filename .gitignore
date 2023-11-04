@@ -49,5 +49,8 @@ po/*~
 rsconnect/
 
 # Data
-bgg-ranking-historical/
+bgg-ranking-historicals/
 data/
+
+# .DS_Store
+.DS_Store
