@@ -1,4 +1,5 @@
 library(tidytuesdayR)
+library(bggAnalytics)
 
 
 # Import of the data ----
@@ -9,3 +10,5 @@ details <- boardgames$details
 
 # Histograms ----
 hist(ratings$average)
+
+vars <- bgg_variables
