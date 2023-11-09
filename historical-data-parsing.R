@@ -134,7 +134,7 @@ Average    <- Average[, c(1:3, 5:ncol(Average), 4)]
 
 
 # Save the data ----
-write.csv(usersRated, file = "data/usersRated.csv", row.names = TRUE)
-write.csv(Rank, file = "data/Rank.csv", row.names = TRUE)
-write.csv(Average, file = "data/Average.csv", row.names = TRUE)
+write.csv(usersRated, file = "data/usersRated.csv", row.names = FALSE)
+write.csv(Rank, file = "data/Rank.csv", row.names = FALSE)
+write.csv(Average, file = "data/Average.csv", row.names = FALSE)
 
