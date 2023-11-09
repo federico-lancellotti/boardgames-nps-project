@@ -38,7 +38,7 @@ names(Average)[4] <- toString(starting_date)
 ###         chunks of 10,000 rows.
 ###         If it fails, just run it again.
 
-Category <- data.frame(ID=integer(), Category=character())  # empty dataframe
+Category <- data.frame(ID=integer(), Family=character(), Category=character())  # empty dataframe
 
 store_categories <- function(df, start, finish) {
   # Downloads the info about the category from the online database and stores
@@ -47,12 +47,13 @@ store_categories <- function(df, start, finish) {
   # ordered by ID.
   
   games <- bggGames$new(ids = usersRated[start:finish,]$ID)
-  new_cat <- games$fetch(c("objectid","category"))
+  new_cat <- games$fetch(c("objectid","families","category"))
   
   for (i in 1:length(new_cat[[1]])) {
     id <- as.numeric(new_cat[[1]][i])
-    category <- paste(unlist(new_cat[[2]][i]), collapse = ", ")
-    new_row <- data.frame(ID = id, Category = category)
+    family <- paste(unlist(new_cat[[2]][i]), collapse = ", ")
+    category <- paste(unlist(new_cat[[3]][i]), collapse = ", ")
+    new_row <- data.frame(ID = id, Family = family, Category = category)
     df <- rbind(df, new_row)
   }
   
@@ -66,6 +67,7 @@ Category <- store_categories(Category, 20001, nrow(usersRated))
 # Merge of the datasets by ID
 usersRated <- merge(usersRated, Category, by = "ID")
 Rank       <- merge(Rank, Category, by = "ID")
+Average    <- merge(Average, Category, by = "ID")
 
 
 ### NOTE: the elements of the column "Category" are strings, and not lists of
@@ -81,7 +83,7 @@ Rank       <- merge(Rank, Category, by = "ID")
 ## Check of the category ----
 ### We randomly chose N games and check if the recorded category is the same
 ### as the true category stored on the internet.
-N <- 5
+N <- 10
 idx <- sample(1:nrow(usersRated), N)
 for (i in idx) {
   id <- usersRated[i,]$ID
@@ -100,7 +102,7 @@ filenames <- tools::file_path_sans_ext(basename(list_of_files))
 filenames <- setdiff(filenames, toString(starting_date))
 
 for (f in filenames) {
-  filename <- filename <- paste(filepath, "/", f, ".csv", sep="")
+  filename <- paste(filepath, "/", f, ".csv", sep="")
   current_historical <- read.csv(filename)
   
   new_col.Ratings <- data.frame(current_historical$ID, current_historical$Users.rated)
