@@ -2,6 +2,7 @@ library(roahd)
 library(dplyr)
 library(tidyr)
 library(fda)
+library(fields)
 
 
 # Import data -----------------------------------------------------------------
@@ -80,7 +81,50 @@ abline(v = nbasis[which.min(gcv)], col = 2)  # nbasis=20 seems fine
 
 # Estimate of the mean and of the covariance kernel ---------------------------
 data.fd <- Data2fd(y=t(data[,start.index:ncol(data)]), argvals=abscissa, basisobj=basis)
+
+layout(cbind(1,2))
 plot.fd(data.fd, xaxs='i')
 lines(mean.fd(data.fd), lwd=2)
 eval <- eval.fd(abscissa, data.fd)
-plot(abscissa, abscissa, (cov(t(eval))[1:length(abscissa),]))
+cov <- cov(t(eval))[1:length(abscissa),]
+image.plot(abscissa, abscissa, cov)
+
+
+# FPCA ------------------------------------------------------------------------
+plot.fd(data.fd)
+
+pca.data <- pca.fd(data.fd, nharm=5, centerfns=TRUE)
+
+# Scree plot
+par(mfrow=c(1,1))
+plot(pca.data$values, xlab='j', ylab='Eigenvalues')
+plot(cumsum(pca.data$values)/sum(pca.data$values), xlab='j', ylab='CPV', ylim=c(0.8,1))
+
+# First three FPCs
+quartz()
+layout(cbind(1,2,3))
+plot(pca.data$harmonics[1,], col=1, ylab='FPC1')  # linear accumulation of ratings
+plot(pca.data$harmonics[2,], col=2, ylab='FPC2')
+plot(pca.data$harmonics[3,], col=3, ylab='FPC3')
+
+# Plot of the principal components as perturbation of the mean
+mean <- mean.fd(data.fd)
+
+plot(mean, lwd=2, main='FPC1')
+lines(mean+pca.data$harmonic[1,]*sqrt(pca.data$values[1]), col=2)
+lines(mean-pca.data$harmonic[1,]*sqrt(pca.data$values[1]), col=3)
+
+plot(mean, lwd=2, main='FPC2')
+lines(mean+pca.data$harmonic[2,]*sqrt(pca.data$values[2]), col=2)
+lines(mean-pca.data$harmonic[2,]*sqrt(pca.data$values[2]), col=3)
+
+plot(mean, lwd=2, main='FPC3')
+lines(mean+pca.data$harmonic[3,]*sqrt(pca.data$values[3]), col=2)
+lines(mean-pca.data$harmonic[3,]*sqrt(pca.data$values[3]), col=3)
+
+# Command of the library fda that automatically does these plots
+par(mfrow=c(1,3))
+plot.pca.fd(pca.data, nx=100, pointplot=TRUE, harm=c(1,2,3), expand=0, cycle=FALSE)
+
+
+
