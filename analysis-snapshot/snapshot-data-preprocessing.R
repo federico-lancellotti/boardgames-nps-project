@@ -71,3 +71,9 @@ for (i in idx) {
   else
     print("OK.")
 }
+
+
+# Export of the data ----------------------------------------------------------
+write.csv(data, file = "data-snapshot/boardgames-weights.csv", row.names = FALSE)
+
+
