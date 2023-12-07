@@ -91,7 +91,7 @@ image.plot(abscissa, abscissa, cov)
 
 
 # FPCA ------------------------------------------------------------------------
-plot.fd(data.fd)
+# plot.fd(data.fd)
 
 pca.data <- pca.fd(data.fd, nharm=5, centerfns=TRUE)
 
