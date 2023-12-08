@@ -26,6 +26,23 @@ hist(log(data$playingtime))
 hist(data$minage)
 
 
+# Categories once again  ------------------------------------------------------
+plot(data[data$Medieval==1,]$Economic)
+
+
+# Publishers   ---------------------------------------------------------------
+publishers <- table(data$boardgamepublisher)
+publishers <- sort(publishers, decreasing = TRUE)
+
+publishers.big <- names(publishers[publishers >= 20])
+publishers.big <- setdiff(publishers.big, c("['(Public Domain)']", "['(Self-Published)', '(Web published)']",
+                                            "['(Self-Published)']", "['(Web published)']"))
+sum(publishers[1:length(publishers.big)]) / nrow(data)
+
+data$bigpublisher <- 0
+data$bigpublisher[data$boardgamepublisher %in% publishers.big] <- 1
+
+
 # Model  ----------------------------------------------------------------------
 catList.index <- which(colnames(data) == "Category") + 1
 covariates.categories <- colnames(data[,catList.index:ncol(data)])
@@ -113,3 +130,5 @@ formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
 model <- gam(formula, data=data)
 summary(model)  # R-sq.(adj) =  0.252   Deviance explained = 25.6%
                 # GCV = 1.5878  Scale est. = 1.5799    n = 21236
+
+
