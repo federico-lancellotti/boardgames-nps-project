@@ -7,7 +7,7 @@ boardgames <- tidytuesdayR::tt_load('2022-01-25')
 ratings <- boardgames$ratings
 details <- boardgames$details
 
-historical.usersRated <- read.csv("./data/usersRated_preproc.csv")
+historical.usersRated <- read.csv("./data-historical/usersRated_preproc.csv")
 
 ratings.cols = c(1:6, 8)
 details.cols = c(2, 6:8, 11, 19, 20)
