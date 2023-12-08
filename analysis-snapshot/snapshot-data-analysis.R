@@ -6,12 +6,12 @@ library(splines)
 library(pbapply)
 
 
-# Set global parameters  ------------------------------------------------------
+# Set global parameters -------------------------------------------------------
 set.seed(1)
 B <- 1e2
 
 
-# Import of the data ----------------------------------------------------------
+# Import the data -------------------------------------------------------------
 data <- read.csv("../data-snapshot/boardgames-weights.csv")
 
 
@@ -26,11 +26,11 @@ hist(log(data$playingtime))
 hist(data$minage)
 
 
-# Categories once again  ------------------------------------------------------
+# Categories once again -------------------------------------------------------
 plot(data[data$Medieval==1,]$Economic)
 
 
-# Publishers   ---------------------------------------------------------------
+# Publishers ------------------------------------------------------------------
 publishers <- table(data$boardgamepublisher)
 publishers <- sort(publishers, decreasing = TRUE)
 
@@ -43,7 +43,7 @@ data$bigpublisher <- 0
 data$bigpublisher[data$boardgamepublisher %in% publishers.big] <- 1
 
 
-# Model  ----------------------------------------------------------------------
+# Model -----------------------------------------------------------------------
 catList.index <- which(colnames(data) == "Category") + 1
 covariates.categories <- colnames(data[,catList.index:ncol(data)])
 # covariates.categories <- paste0("s(", covariates.categories, ", bs='re')")
@@ -60,7 +60,7 @@ model <- gam(formula, data=data)
 summary(model)
 
 
-# Variable selection   --------------------------------------------------------
+# Variable selection ----------------------------------------------------------
 covariates.categories.toremove <- c("Fan.Expansion", "Expansion.for.Base.game", "Korean.War",
                                     "Vietnam.War", "Mature...Adult", "Video.Game.Theme",
                                     "American.Revolutionary.War", "American.Indian.Wars",
@@ -72,7 +72,9 @@ covariates.categories.toremove <- c("Fan.Expansion", "Expansion.for.Base.game", 
                                     "Word.Game", "Electronic", "Humor", "Space.Exploration",
                                     "Adventure", "American.West", "Racing", "Maze",
                                     "Collectible.Components", "Dice", "Mythology",
-                                    "Travel", "Card.Game", "Negotiation")
+                                    "Travel", "Card.Game", "Negotiation",
+                                    "Puzzle", "Industry...Manufacturing", "American.Civil.War",
+                                    "Zombies")
 covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
                                          covariates.categories.toremove)
 covariates.reduced <- paste(c(covariates.others, covariates.categories.reduced), collapse=" + ")
@@ -101,22 +103,10 @@ sum(T_H0>=T0)/B
 
 
 # Model with interactions -----------------------------------------------------
-covariates.categories.toremove <- c("Fan.Expansion", "Expansion.for.Base.game", "Korean.War",
-                                    "Vietnam.War", "Mature...Adult", "Video.Game.Theme",
-                                    "American.Revolutionary.War", "American.Indian.Wars",
-                                    "Civil.War", "Game.System", "Religious", "Pike.and.Shot",
-                                    "Arabian", "Environmental", "Music", "Comic.Book...Strip",
-                                    "Movies...TV...Radio.theme", "Modern.Warfare", "Miniatures",
-                                    "Post.Napoleonic", "Medical", "Transportation", "Murder.Mystery",
-                                    "Pirates", "Trains", "World.War.II", "Trivia",
-                                    "Word.Game", "Electronic", "Humor", "Space.Exploration",
-                                    "Adventure", "American.West", "Racing", "Maze",
-                                    "Collectible.Components", "Dice", "Mythology",
-                                    "Travel", "Card.Game", "Negotiation", "Abstract.Strategy")
 covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
                                          covariates.categories.toremove)
 
-covariates.others <- c("average", "minplayers", "maxplayers", "weight", "log(playingtime+1)", "minage")
+covariates.others <- c("average", "minplayers", "maxplayers", "weight", "log(playingtime+1)", "minage", "year")
 covariates.others <- paste0("s(", covariates.others, ", bs='cr')")
 
 covariates.interactions <- c("I(average*weight)", "I(average*log(playingtime+1))", "I(weight*log(playingtime+1))")
@@ -128,7 +118,7 @@ target <- "log(users_rated + 1)"
 formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
 
 model <- gam(formula, data=data)
-summary(model)  # R-sq.(adj) =  0.252   Deviance explained = 25.6%
-                # GCV = 1.5878  Scale est. = 1.5799    n = 21236
+summary(model)  # R-sq.(adj) =  0.272   Deviance explained = 27.6%
+                # GCV = 1.5468  Scale est. = 1.5384    n = 21236
 
 
