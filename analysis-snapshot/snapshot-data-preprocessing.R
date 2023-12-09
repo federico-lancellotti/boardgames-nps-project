@@ -72,8 +72,83 @@ for (i in idx) {
     print("OK.")
 }
 
+# Export of the data ----------------------------------------------------------
+write.csv(data, file = "../data-snapshot/boardgames-weights.csv", row.names = FALSE)
+
+
+# Publishers ------------------------------------------------------------------
+data <- read.csv("../data-snapshot/boardgames-weights.csv")
+
+## Remove games without a publisher (only 1 row)
+data <- data[!is.na(data$boardgamepublisher),]
+
+## Parsing function
+library(jsonlite)
+publishers <- "['GP Games', 'Lakeside', \"OPEN'N PLAY\", 'Pelikan']"
+publishers <- data$boardgamepublisher[data$id == 25729]
+publishers <- data$boardgamepublisher[data$id == 235512]
+
+parsePublishers <- function(publishers){
+  publishers <- gsub("^\\[|\\]$", "", publishers)
+  publishers <- unlist(strsplit(publishers, "', |, '"))
+  publishers <- gsub("'", "", publishers)
+  publishers <- gsub("[\"']", "", publishers)
+
+  return(publishers)
+}
+
+## Get unique publishers ----
+publishers.names <- factor(c())
+for (i in 1:nrow(data)) {
+  new_pub <- data$boardgamepublisher[i]
+  parsed_list <- parsePublishers(new_pub)
+  publishers.names <- unique(c(publishers.names, parsed_list))
+}
+publishers.names <- unique(publishers.names)
+length(publishers.names)
+
+## Dummy variables for each publisher ----
+publishers <- data[,c(1, 3, 13)]
+for (name in publishers.names) {
+  publishers[[name]] <- 0
+}
+
+for (i in 1:nrow(publishers)) {
+  pub_list <- parsePublishers(data$boardgamepublisher[i])
+  
+  for (pub in pub_list) {
+    publishers[i,pub] <- 1
+  }
+}
+
+## Check
+data[!complete.cases(data), ]
+
+## Frequencies ----
+publishers.freq <- colSums(publishers[,4:ncol(publishers)])
+publishers.freq <- sort(publishers.freq, decreasing = TRUE)
+publishers.freq[1:20]
+
+selfpublished <- c("(Public Domain)", "(Self-Published)", "(Web published)")
+publishers.freq[selfpublished] <- 0
+sort(publishers.freq, decreasing = FALSE)[1:20]
+
+for (i in 1:nrow(data)) {
+  pub_list <- pub_list <- parsePublishers(data$boardgamepublisher[i])
+  
+  data$dimpublisher[i] <- sum(publishers.freq[pub_list])  # sum of the frequencies of each contributing publisher
+  avgpublisher <- mean(publishers.freq[pub_list])         # average of the frequencies
+  data$avgpublisher[i] <- ifelse(is.na(avgpublisher), 0, avgpublisher)
+}
+
+## Check
+data[!complete.cases(data), ]
+
+## Move the new columns
+data <- data[, c(1:13, ncol(data)-1, ncol(data), 16:ncol(data)-2)]
+
 
 # Export of the data ----------------------------------------------------------
-write.csv(data, file = "data-snapshot/boardgames-weights.csv", row.names = FALSE)
+write.csv(data, file = "../data-snapshot/boardgames-weights-publishers.csv", row.names = FALSE)
 
 
