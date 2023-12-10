@@ -5,6 +5,9 @@ setwd("C:/Users/Silvia/Desktop/23-24/NONPAR/project")
 # details=read.csv("details.csv", head=T) 
 # ratings=read.csv("ratings.csv", head=T)
 LMdataset=as.data.frame(read.csv("C:/Users/Silvia/Desktop/23-24/NONPAR/project/data/LMdataset.csv",head=TRUE))
+LMdata=as.data.frame(read.csv("C:/Users/Silvia/Desktop/23-24/NONPAR/project/data/LMdata.csv",head=TRUE))
+#the one with weights
+
 
 #how many unique years there are?
 # unique_y <- unique(LMdataset$Year)
@@ -20,8 +23,55 @@ library(rgl)
 library(splines)
 library(pbapply)
 
-mydata=LMdataset[,c(-5,-10,-11,-13,-14,-15,-16,-17)]
-mydata=mydata[,c(-5,-6,-11,-12,-13)]
+mydata=LMdata[,c(-3,-5,-8,-11,-12,-14,-15,-16,-17,-18,-19,-20,-21,-22,-98)]
+colSums(is.na(mydata))
+#functions----------------------------------------------------------------------------------
+perm_sel=function(model){
+  pv=pv_extr(model)
+  if(model$type=="lm"){
+    covar.names=gsub("ns\\(([^,]+),.*", "\\1", names(pv[pv>0.1]))
+    #covar.names=gsub("ns\\(([^,]+),.*", "\\1", names(pv))
+    R2adj.perm=names(covar.names)
+    for(i in covar.names){
+      mydata.perm=mydata
+      mydata.perm[[i]]=sample(mydata.perm[[i]])
+      model_perm <-lm(formula, data = mydata.perm)
+      R2adj.perm[i]=summary(model_perm)$adj.r.squared
+    }
+  }
+  else{
+    covar.names=gsub("s\\((.*?)\\)", "\\1", names(pv[pv>0.1]))
+    #covar.names=gsub("s\\((.*?)\\)", "\\1", names(pv))
+    R2adj.perm=names(covar.names)
+    for(i in covar.names){
+      mydata.perm=mydata
+      mydata.perm[[i]]=sample(mydata.perm[[i]])
+      model_perm <-gam(formula, data = mydata.perm)
+      R2adj.perm[i]=summary(model_perm)$r.sq
+    }
+  }
+  return(R2adj.perm)
+}
+
+
+pv_extr=function(model){
+  if(model$type=="lm"){
+    return(summary(model)$coefficients[, "Pr(>|t|)"])
+  }
+  else{
+    return(c(summary(model)$p.table[,"Pr(>|t|)"],summary(model)$s.table[,4]) )
+  }
+}
+
+R_extr=function(model){
+  if(model$type=="lm"){
+    return(summary(model)$adj.r.squared)
+  }
+  else{
+    return(summary(model)$r.sq)
+  }
+}
+
 
 
 #variable selection through parametric lm---------------------------------
@@ -30,105 +80,111 @@ mydata=mydata[,c(-5,-6,-11,-12,-13)]
 model_lm=lm(Rank ~., data=mydata)
 summary(model_lm)
 
+
 # Residuals:
 #   Min     1Q Median     3Q    Max 
-# -17576  -2974    413   2725  31824 
+# -16634  -4042    243   3946  36671 
 # 
 # Coefficients:
-#                             Estimate  Std. Error  t value   Pr(>|t|)    
-# (Intercept)                  4.411e+04  2.399e+02  183.864  < 2e-16 ***
-#   ID                         8.151e-03  3.100e-04   26.293  < 2e-16 ***
-#   Avg_ratings               -5.179e+03  3.641e+01 -142.234  < 2e-16 ***
-#   Users_rated                8.851e-01  4.273e-02   20.716  < 2e-16 ***
-#   Max_players               -9.714e+01  3.270e+01   -2.971 0.002973 ** 
-#   Playing_time               9.635e-02  4.949e-02    1.947 0.051590 .  
-#   Min_age                   -1.195e+02  8.052e+00  -14.844  < 2e-16 ***
-#   Owned                     -7.882e-01  2.923e-02  -26.966  < 2e-16 ***
-#       Economic                  -4.476e+01  1.174e+02   -0.381 0.703039    
-#   Negotiation                6.037e+02  1.629e+02    3.706 0.000211 ***
-#   Political                 -3.777e+02  1.819e+02   -2.077 0.037796 *  
-#       Card.Game                  8.177e+00  6.512e+01    0.126 0.900076    
-#   Fantasy                   -2.313e+02  8.994e+01   -2.572 0.010131 *  
-#   Abstract.Strategy          5.499e+02  1.102e+02    4.989 6.12e-07 ***
-#   Medieval                  -4.787e+02  1.267e+02   -3.779 0.000158 ***
-#   Ancient                   -8.817e+02  1.524e+02   -5.785 7.36e-09 ***
-#   Territory.Building        -8.061e+02  1.774e+02   -4.544 5.54e-06 ***
-#   Civilization              -6.248e+02  2.187e+02   -2.856 0.004288 ** 
-#   Nautical                  -8.209e+02  1.627e+02   -5.045 4.57e-07 ***
-#   Exploration               -2.256e+02  1.444e+02   -1.562 0.118203    
-#       Travel                    -1.859e+02  2.572e+02   -0.723 0.469910    
-#   Farming                   -1.081e+03  2.529e+02   -4.274 1.93e-05 ***
-#       Mythology                  7.528e+01  2.088e+02    0.360 0.718490    
-#   Bluffing                  -5.316e+02  1.234e+02   -4.309 1.65e-05 ***
-#   Science.Fiction           -3.231e+02  1.090e+02   -2.965 0.003034 ** 
-#   Collectible.Components     5.113e+02  2.102e+02    2.432 0.015020 *  
-#   Dice                      -1.636e+02  9.647e+01   -1.696 0.089832 .  
-#   Fighting                   2.447e+02  1.079e+02    2.268 0.023337 *  
-#   Print...Play               1.081e+03  1.595e+02    6.778 1.25e-11 ***
-#      30 Maze                      -2.694e+01  2.820e+02   -0.096 0.923902    
-#   Miniatures                 5.632e+02  1.342e+02    4.196 2.72e-05 ***
-#       32Racing                     2.173e+02  1.616e+02    1.345 0.178748    
-#       33American.West             -2.121e+02  2.520e+02   -0.842 0.399988    
-#   City.Building             -1.463e+03  1.751e+02   -8.357  < 2e-16 ***
-#   Wargame                    2.444e+03  9.549e+01   25.595  < 2e-16 ***
-#   Adventure                  6.528e+02  1.310e+02    4.983 6.32e-07 ***
-#       37Space.Exploration         -5.436e+01  2.404e+02   -0.226 0.821099    
-#   Renaissance               -1.277e+03  2.415e+02   -5.285 1.27e-07 ***
-#   Modern.Warfare             4.722e+02  2.083e+02    2.267 0.023391 *  
-#   Humor                      4.732e+02  1.206e+02    3.924 8.74e-05 ***
-#   Electronic                 6.739e+02  2.753e+02    2.448 0.014372 *  
-#       42Horror                     4.968e+01  1.596e+02    0.311 0.755648    
-#      43 Novel.based               -2.520e+02  1.775e+02   -1.420 0.155694    
-#   Deduction                 -4.479e+02  1.357e+02   -3.301 0.000964 ***
-#   Word.Game                  6.170e+02  1.846e+02    3.342 0.000833 ***
-#   Aviation...Flight         -8.187e+02  2.370e+02   -3.454 0.000553 ***
-#   Movies...TV...Radio.theme  3.055e+02  1.265e+02    2.416 0.015717 *  
-#   Party.Game                 3.524e+02  1.070e+02    3.294 0.000990 ***
-#   Memory                     7.772e+02  1.734e+02    4.482 7.43e-06 ***
-#   Puzzle                    -7.559e+02  1.563e+02   -4.838 1.32e-06 ***
-#   Real.time                 -9.910e+02  1.488e+02   -6.661 2.79e-11 ***
-#   Trivia                     1.099e+03  1.759e+02    6.246 4.28e-10 ***
-#   Industry...Manufacturing  -8.146e+02  2.344e+02   -3.476 0.000511 ***
-#      54 Age.of.Reason             -3.916e+02  3.032e+02   -1.292 0.196502    
-#   Trains                    -3.718e+02  2.290e+02   -1.624 0.104449    
-#   Animals                   -7.828e+02  1.145e+02   -6.835 8.44e-12 ***
-#   X.Childrens.Game.          6.088e+02  1.142e+02    5.331 9.89e-08 ***
-#      58 Pirates                    1.276e+02  2.192e+02    0.582 0.560403    
-#      59 Murder.Mystery             2.797e+02  2.283e+02    1.225 0.220672    
-#   Transportation            -5.931e+02  2.161e+02   -2.745 0.006062 ** 
-#   Prehistoric               -9.418e+02  3.065e+02   -3.072 0.002127 ** 
-#   Sports                     1.089e+03  1.799e+02    6.054 1.44e-09 ***
-#       63Action...Dexterity        -1.969e+02  1.289e+02   -1.528 0.126555    
-#   Game.System                1.468e+03  7.147e+02    2.054 0.040011 *  
-#       65Spies.Secret.Agents        2.072e+01  2.725e+02    0.076 0.939400    
-#   Educational                6.036e+02  1.817e+02    3.322 0.000896 ***
-#      66 Medical                    2.505e+02  4.136e+02    0.606 0.544717    
-#      68 Mafia                      2.449e+02  3.167e+02    0.773 0.439431    
-#       69Zombies                   -1.382e+02  2.808e+02   -0.492 0.622549    
-#       70Comic.Book...Strip         1.536e+02  2.115e+02    0.726 0.467600    
-#   Napoleonic                 6.164e+02  2.263e+02    2.724 0.006453 ** 
-#   Post.Napoleonic            5.495e+02  2.563e+02    2.144 0.032016 *  
-#      73 Math                       3.712e+02  3.253e+02    1.141 0.253765    
-#   Book                       1.252e+03  2.983e+02    4.195 2.74e-05 ***
-#   Music                      1.050e+03  4.180e+02    2.513 0.011968 *  
-#      76 Environmental              1.666e+02  2.837e+02    0.587 0.557107    
-#   Arabian                   -6.961e+02  3.788e+02   -1.838 0.066140 .  
-#      78 Number                    -1.347e+02  2.836e+02   -0.475 0.634779    
-#      79 Religious                 -2.460e+02  3.461e+02   -0.711 0.477349    
-#       80Pike.and.Shot             -8.249e+01  4.656e+02   -0.177 0.859389    
-#   Video.Game.Theme           3.845e+02  2.092e+02    1.838 0.066018 .  
-#   Mature...Adult             1.686e+03  3.193e+02    5.281 1.30e-07 ***
-#     83  Expansion.for.Base.game    1.006e+03  7.834e+02    1.284 0.199007    
-#   Mean_players               1.907e+02  6.535e+01    2.919 0.003519 ** 
-#   ---
+#   Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)                2.192e+04  3.643e+02  60.165  < 2e-16 ***
+#   ID                        -1.257e-02  3.647e-04 -34.478  < 2e-16 ***
+#   Users_rated               -4.361e-01  9.667e-03 -45.113  < 2e-16 ***
+#   Year                      -1.047e+00  1.691e-01  -6.194 5.97e-10 ***
+#   weights                   -3.048e+03  6.359e+01 -47.936  < 2e-16 ***
+#   Max_players               -2.620e+00  2.356e+00  -1.112 0.266068    
+#   Playing_time               1.135e-01  6.689e-02   1.697 0.089629 .  
+#   Min_age                   -9.808e+01  1.107e+01  -8.857  < 2e-16 ***
+#   Economic                   6.376e+02  1.585e+02   4.022 5.80e-05 ***
+#   Negotiation                1.323e+03  2.182e+02   6.065 1.34e-09 ***
+#   Political                 -2.468e+02  2.446e+02  -1.009 0.313095    
+#   Card.Game                 -3.211e+02  8.844e+01  -3.630 0.000284 ***
+#   Fantasy                   -3.951e+02  1.214e+02  -3.255 0.001137 ** 
+#   Abstract.Strategy         -2.422e+01  1.479e+02  -0.164 0.869925    
+#   Medieval                  -4.695e+02  1.702e+02  -2.758 0.005813 ** 
+#   Ancient                   -9.993e+02  2.042e+02  -4.894 9.96e-07 ***
+#   Territory.Building        -4.264e+02  2.375e+02  -1.796 0.072553 .  
+#   Civilization              -1.694e+02  2.938e+02  -0.577 0.564117    
+#   Nautical                  -1.011e+03  2.184e+02  -4.631 3.66e-06 ***
+#   Exploration               -4.231e+02  1.936e+02  -2.185 0.028880 *  
+#   Travel                    -1.220e+01  3.450e+02  -0.035 0.971796    
+#   Farming                   -1.235e+03  3.389e+02  -3.645 0.000268 ***
+#   Mythology                  1.569e+02  2.807e+02   0.559 0.576151    
+#   Bluffing                  -9.580e+02  1.654e+02  -5.792 7.07e-09 ***
+#   Science.Fiction           -8.859e+01  1.466e+02  -0.604 0.545582    
+#   Collectible.Components     7.965e+02  2.865e+02   2.780 0.005437 ** 
+#   Dice                      -4.406e+01  1.298e+02  -0.339 0.734312    
+#   Fighting                  -1.946e+02  1.455e+02  -1.338 0.180885    
+#   Print...Play              -1.650e+02  2.136e+02  -0.772 0.439851    
+#   Maze                      -5.500e+02  3.784e+02  -1.454 0.146085    
+#   Miniatures                -7.236e+02  1.807e+02  -4.005 6.23e-05 ***
+#   Racing                    -1.864e+01  2.166e+02  -0.086 0.931421    
+#   American.West             -2.837e+02  3.373e+02  -0.841 0.400273    
+#   City.Building             -1.501e+03  2.353e+02  -6.379 1.82e-10 ***
+#   Wargame                    1.028e+03  1.321e+02   7.783 7.42e-15 ***
+#   Adventure                  6.501e+02  1.750e+02   3.715 0.000204 ***
+#   Space.Exploration          2.633e+02  3.220e+02   0.818 0.413532    
+#   Renaissance               -1.291e+03  3.235e+02  -3.991 6.61e-05 ***
+#   Modern.Warfare             1.065e+03  2.792e+02   3.815 0.000137 ***
+#   Humor                      6.746e+02  1.622e+02   4.159 3.21e-05 ***
+#   Electronic                 9.989e+02  3.692e+02   2.705 0.006827 ** 
+#   Horror                    -1.691e+02  2.147e+02  -0.788 0.430695    
+#   Novel.based                2.897e+02  2.382e+02   1.216 0.223961    
+#   Deduction                 -5.580e+02  1.821e+02  -3.065 0.002183 ** 
+#   Word.Game                 -4.678e+02  2.485e+02  -1.882 0.059796 .  
+#   Aviation...Flight         -1.397e+03  3.171e+02  -4.406 1.06e-05 ***
+#   Movies...TV...Radio.theme  1.514e+03  1.693e+02   8.942  < 2e-16 ***
+#   Party.Game                -7.815e+01  1.432e+02  -0.546 0.585282    
+#   Memory                     6.945e+02  2.331e+02   2.980 0.002888 ** 
+#   Puzzle                    -8.211e+02  2.084e+02  -3.940 8.17e-05 ***
+#   Real.time                 -1.109e+03  2.001e+02  -5.543 3.00e-08 ***
+#   Trivia                     1.931e+03  2.374e+02   8.133 4.40e-16 ***
+#   Industry...Manufacturing  -5.907e+02  3.147e+02  -1.877 0.060505 .  
+#   Age.of.Reason             -9.828e+02  4.059e+02  -2.422 0.015464 *  
+#   Trains                    -1.244e+03  3.079e+02  -4.039 5.39e-05 ***
+#   Animals                   -9.419e+02  1.539e+02  -6.121 9.43e-10 ***
+#   X.Childrens.Game.          1.067e+03  1.542e+02   6.921 4.61e-12 ***
+#   Pirates                    1.805e+02  2.942e+02   0.614 0.539541    
+#   Murder.Mystery            -4.803e+02  3.074e+02  -1.563 0.118139    
+#   Transportation            -4.319e+02  2.895e+02  -1.492 0.135737    
+#   Prehistoric               -6.014e+02  4.104e+02  -1.466 0.142789    
+#   Sports                    -6.556e+02  2.406e+02  -2.725 0.006433 ** 
+#   Action...Dexterity        -8.161e+02  1.744e+02  -4.680 2.89e-06 ***
+#   Game.System               -8.789e+02  9.560e+02  -0.919 0.357946    
+#   Spies.Secret.Agents        6.903e+01  3.662e+02   0.188 0.850501    
+#   Educational                2.696e+02  2.446e+02   1.102 0.270337    
+#   Medical                    6.578e+02  5.532e+02   1.189 0.234430    
+#   Mafia                     -2.695e+02  4.249e+02  -0.634 0.525862    
+#   Zombies                    1.646e+02  3.763e+02   0.437 0.661785    
+#   Comic.Book...Strip         7.569e+01  2.851e+02   0.265 0.790646    
+#   Napoleonic                -3.366e+02  3.035e+02  -1.109 0.267444    
+#   Post.Napoleonic            1.001e+02  3.430e+02   0.292 0.770427    
+#   Math                       9.805e+02  4.368e+02   2.245 0.024803 *  
+#   Book                      -4.723e+02  4.003e+02  -1.180 0.238014    
+#   Music                      5.572e+02  5.593e+02   0.996 0.319150    
+#   Environmental              2.549e+02  3.817e+02   0.668 0.504387    
+#   Arabian                   -1.536e+02  5.069e+02  -0.303 0.761928    
+#   Number                    -2.003e+02  3.796e+02  -0.528 0.597693    
+#   Religious                  3.692e+02  4.634e+02   0.797 0.425634    
+#   Pike.and.Shot              1.841e+02  6.233e+02   0.295 0.767641    
+#   Video.Game.Theme           9.605e+02  2.803e+02   3.427 0.000613 ***
+#   Mature...Adult             2.853e+03  4.272e+02   6.677 2.49e-11 ***
+#   Expansion.for.Base.game   -2.464e+02  1.048e+03  -0.235 0.814187    
+# ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 3824 on 21547 degrees of freedom
-# Multiple R-squared:  0.6343,	Adjusted R-squared:  0.6329 
-# F-statistic: 450.3 on 83 and 21547 DF,  p-value: < 2.2e-16
+# Residual standard error: 5117 on 21378 degrees of freedom
+# Multiple R-squared:  0.348,	Adjusted R-squared:  0.3455 
+# F-statistic: 139.1 on 82 and 21378 DF,  p-value: < 2.2e-16
 
-mydata=mydata[,c(-9,-12,-21,-23,-30,-32,-33,-37,-42,-43,-54,-58,-59,-63,-65,-66,-68,-69,-70,-73,-76,-78,-79,-80,-83)]
-mydata=mydata[,-59]
+#plot(model_lm)
+model_lm$type="lm"
+pv=pv_extr(model_lm)
+to_delete=gsub("s\\((.*?)\\)", "\\1", names(pv[pv>0.1]))
+to_delete_ind=which(names(mydata) %in% to_delete)
+
+
+mydata=mydata[,-to_delete_ind]
 
 #manova (fail)-------------------------------------------------------------------------
 #permutational repeated measures manova
@@ -241,52 +297,6 @@ mydata=mydata[,-59]
 # 
 
 
-#functions----------------------------------------------------------------------------------
-perm_sel=function(model){
-  pv=pv_extr(model)
-  if(model$type=="lm"){
-    covar.names=gsub("ns\\(([^,]+),.*", "\\1", names(pv[pv>0.1]))
-    #covar.names=gsub("ns\\(([^,]+),.*", "\\1", names(pv))
-    R2adj.perm=names(covar.names)
-    for(i in covar.names){
-      mydata.perm=mydata
-      mydata.perm[[i]]=sample(mydata.perm[[i]])
-      model_perm <-lm(formula, data = mydata.perm)
-      R2adj.perm[i]=summary(model_perm)$adj.r.squared
-    }
-  }
-  else{
-    covar.names=gsub("s\\((.*?)\\)", "\\1", names(pv[pv>0.1]))
-    #covar.names=gsub("s\\((.*?)\\)", "\\1", names(pv))
-    R2adj.perm=names(covar.names)
-    for(i in covar.names){
-      mydata.perm=mydata
-      mydata.perm[[i]]=sample(mydata.perm[[i]])
-      model_perm <-gam(formula, data = mydata.perm)
-      R2adj.perm[i]=summary(model_perm)$r.sq
-    }
-  }
-  return(R2adj.perm)
-}
-
-
-pv_extr=function(model){
-  if(model$type=="lm"){
-    return(summary(model)$coefficients[, "Pr(>|t|)"])
-  }
-  else{
-    return(summary(model)$s.table[,4]) #non funziona bene
-  }
-}
-
-R_extr=function(model){
-  if(model$type=="lm"){
-    return(summary(model)$adj.r.squared)
-  }
-  else{
-    return(summary(model)$r.sq)
-  }
-}
 
 
 #gam------------------------------------------------------------
@@ -299,82 +309,69 @@ formula=as.formula(names)
 model_re=gam(formula,data = mydata)
 model_re$type="gam"
 summary(model_re)
-
 # Parametric coefficients:
 #   Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)  42538.1      211.7     201   <2e-16 ***
+# (Intercept)  21748.9      362.1   60.06   <2e-16 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Approximate significance of smooth terms:
-#                                   edf     Ref.df    F       p-value    
-#   s(Avg_ratings)               9.980e-01      1 2.430e+09  < 2e-16 ***
-#   s(Users_rated)               1.000e+00      1 4.075e+09  < 2e-16 ***
-#   s(Max_players)               4.890e-07      1 0.000e+00 0.470761    
-#   s(Playing_time)              4.120e-01      1 4.192e+02 0.188053    
-#   s(Min_age)                   9.792e-01      1 1.076e+06  < 2e-16 ***
-#   s(Owned)                     1.000e+00      1 1.089e+10  < 2e-16 ***
-#   s(Negotiation)               9.376e-01      1 5.682e+04 0.002702 ** 
-#   s(Political)                 8.600e-01      1 2.417e+04 0.008145 ** 
-#   s(Fantasy)                   6.698e-01      1 9.583e+03 0.085930 .  
-#   s(Abstract.Strategy)         8.152e-01      1 7.496e+03 0.021010 *  
-#   s(Medieval)                  9.164e-01      1 5.467e+05 1.56e-05 ***
-#   s(Ancient)                   9.555e-01      1 8.882e+05  < 2e-16 ***
-#   s(Territory.Building)        8.931e-01      1 8.215e+05 5.18e-05 ***
-#   s(Civilization)              8.446e-01      1 6.855e+05 0.001485 ** 
-#   s(Nautical)                  9.673e-01      1 9.176e+04  < 2e-16 ***
-#   s(Exploration)               7.995e-01      1 4.311e+03 0.014976 *  
-#   s(Farming)                   9.303e-01      1 9.832e+05 2.22e-05 ***
-#   s(Bluffing)                  9.358e-01      1 1.274e+05 3.17e-06 ***
-#   s(Science.Fiction)           8.921e-01      1 2.585e+03 0.003022 ** 
-#   s(Collectible.Components)    2.509e-07      1 0.000e+00 0.661062    
-#   s(Dice)                      2.124e-07      1 0.000e+00 0.983066    
-#   s(Fighting)                  4.721e-07      1 0.000e+00 0.470946    
-#   s(Print...Play)              9.879e-01      1 1.805e+05  < 2e-16 ***
-#   s(Miniatures)                9.625e-01      1 1.417e+05 6.16e-07 ***
-#   s(City.Building)             9.657e-01      1 8.362e+06  < 2e-16 ***
-#   s(Wargame)                   9.856e-01      1 2.629e+07  < 2e-16 ***
-#   s(Adventure)                 9.983e-01      1 1.491e+05 2.75e-05 ***
-#   s(Renaissance)               9.603e-01      1 1.119e+06  < 2e-16 ***
-#   s(Modern.Warfare)            8.252e-01      1 2.117e+04 0.019588 *  
-#   s(Humor)                     9.239e-01      1 1.546e+05 3.06e-05 ***
-#   s(Electronic)                4.640e-01      1 8.770e+01 0.143977    
-#   s(Deduction)                 6.366e-01      1 1.972e+03 0.092342 .  
-#   s(Word.Game)                 6.321e-01      1 6.310e+03 0.070008 .  
-#   s(Aviation...Flight)         9.344e-01      1 2.106e+04 0.000183 ***
-#   s(Movies...TV...Radio.theme) 8.394e-01      1 8.933e+04 0.003092 ** 
-#   s(Party.Game)                9.009e-01      1 1.468e+05 5.81e-07 ***
-#   s(Memory)                    9.137e-01      1 2.029e+04 0.000309 ***
-#   s(Puzzle)                    9.055e-01      1 3.495e+03 0.000674 ***
-#   s(Real.time)                 9.739e-01      1 2.594e+04  < 2e-16 ***
-#   s(Trivia)                    9.291e-01      1 1.106e+05  < 2e-16 ***
-#   s(Industry...Manufacturing)  8.952e-01      1 2.730e+05 0.000208 ***
-#   s(Trains)                    8.861e-01      1 8.327e+04 0.000476 ***
-#   s(Animals)                   9.730e-01      1 1.035e+05  < 2e-16 ***
-#   s(X.Childrens.Game.)         9.236e-01      1 6.358e+04 1.14e-05 ***
-#   s(Transportation)            8.491e-01      1 1.375e+05 0.000241 ***
-#   s(Prehistoric)               8.797e-01      1 2.112e+04 0.001938 ** 
-#   s(Sports)                    9.124e-01      1 1.293e+04 0.000411 ***
-#   s(Game.System)               2.840e-01      1 4.687e+01 0.227449    
-#   s(Medical)                   2.044e-01      1 3.007e+01 0.267170    
-#   s(Napoleonic)                7.644e-01      1 8.230e+03 0.027124 *  
-#   s(Post.Napoleonic)           6.699e-01      1 6.454e+01 0.080870 .  
-#   s(Book)                      9.270e-01      1 1.867e+04 4.14e-05 ***
-#   s(Music)                     7.745e-01      1 8.140e+02 0.021779 *  
-#   s(Arabian)                   7.604e-01      1 9.116e+03 0.044457 *  
-#   s(Video.Game.Theme)          9.026e-01      1 3.379e+04 0.002835 ** 
-#   s(Mature...Adult)            9.626e-01      1 1.309e+05  < 2e-16 ***
+#                                   edf       Ref.df     F   p-value    
+#   s(Users_rated)               9.961e-01      1  11585.66  < 2e-16 ***
+#   s(Year)                      9.836e-01      1    125.62  < 2e-16 ***
+#   s(weights)                   9.958e-01      1 369236.41  < 2e-16 ***
+#   s(Playing_time)              6.354e-01      1     20.97 0.088800 .  
+#   s(Min_age)                   9.840e-01      1   6009.35  < 2e-16 ***
+#   s(Economic)                  9.929e-01      1    865.70  < 2e-16 ***
+#   s(Negotiation)               9.785e-01      1    604.93  < 2e-16 ***
+#   s(Card.Game)                 9.783e-01      1   1494.43  < 2e-16 ***
+#   s(Fantasy)                   9.645e-01      1    379.96  < 2e-16 ***
+#   s(Medieval)                  8.069e-01      1     25.48 0.011910 *  
+#   s(Ancient)                   9.474e-01      1    127.38 3.73e-06 ***
+#   s(Territory.Building)        8.449e-01      1     39.48 0.003739 ** 
+#   s(Nautical)                  9.281e-01      1     59.96 0.000141 ***
+#   s(Exploration)               7.880e-01      1     39.92 0.026861 *  
+#   s(Farming)                   9.349e-01      1     74.53 1.92e-05 ***
+#   s(Bluffing)                  9.543e-01      1    294.45 3.41e-07 ***
+#   s(Collectible.Components)    9.716e-01      1    138.88  < 2e-16 ***
+#   s(Miniatures)                9.845e-01      1   1350.68  < 2e-16 ***
+#   s(City.Building)             9.661e-01      1    533.81  < 2e-16 ***
+#   s(Wargame)                   9.910e-01      1  34952.35  < 2e-16 ***
+#   s(Adventure)                 9.652e-01      1    133.91 0.000448 ***
+#   s(Renaissance)               9.139e-01      1     57.24 0.000147 ***
+#   s(Modern.Warfare)            9.168e-01      1    285.68 0.000103 ***
+#   s(Humor)                     9.477e-01      1    287.86 3.59e-06 ***
+#   s(Electronic)                9.293e-01      1     63.70 4.65e-05 ***
+#   s(Deduction)                 9.705e-01      1    360.18  < 2e-16 ***
+#   s(Word.Game)                 2.915e-09      1      0.00 0.973433    
+#   s(Aviation...Flight)         9.533e-01      1    100.68 2.90e-05 ***
+#   s(Movies...TV...Radio.theme) 9.737e-01      1    583.42  < 2e-16 ***
+#   s(Memory)                    9.445e-01      1    185.28 5.17e-06 ***
+#   s(Puzzle)                    9.716e-01      1    209.78  < 2e-16 ***
+#   s(Real.time)                 9.767e-01      1    531.14  < 2e-16 ***
+#   s(Trivia)                    9.825e-01      1   1277.85  < 2e-16 ***
+#   s(Industry...Manufacturing)  8.632e-01      1    104.83 0.005627 ** 
+#   s(Age.of.Reason)             8.266e-01      1     31.71 0.017524 *  
+#   s(Trains)                    9.501e-01      1    226.23 5.45e-05 ***
+#   s(Animals)                   9.865e-01      1    970.88  < 2e-16 ***
+#   s(X.Childrens.Game.)         9.788e-01      1   4865.63  < 2e-16 ***
+#   s(Sports)                    2.869e-09      1      0.00 0.749439    
+#   s(Action...Dexterity)        9.713e-01      1    563.44 4.81e-06 ***
+#   s(Math)                      8.588e-01      1     10.91 0.008435 ** 
+#   s(Video.Game.Theme)          7.210e-01      1      4.32 0.059211 .  
+#   s(Mature...Adult)            9.664e-01      1    185.42  < 2e-16 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# R-sq.(adj) =  0.621   Deviance explained = 62.2%
-# GCV = 1.5132e+07  Scale est. = 1.51e+07  n = 21631
+# R-sq.(adj) =  0.309   Deviance explained =   31%
+# GCV = 2.7699e+07  Scale est. = 2.7648e+07  n = 21461
+
+
 
 R2adj=R_extr(model_re)
 R2adj.perm=perm_sel(model_re)
 thres=0.05
-to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
-#if the difference in terms of R^2adj is not so big we can delete those variables
+to_delete_perm=(abs(R2adj-R2adj.perm)<=thres) #if the difference in terms of R^2adj is not so big we can delete those variables
 #all true
 #let's delete them:
 to_delete_ind=which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
@@ -389,69 +386,194 @@ summary(model_re1)
 
 # Parametric coefficients:
 #   Estimate Std. Error t value Pr(>|t|)    
-#   (Intercept)  42535.2      211.5   201.1   <2e-16 ***
+# (Intercept)  21748.8      362.1   60.06   <2e-16 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Approximate significance of smooth terms:
 #   edf Ref.df         F  p-value    
-#   s(Avg_ratings)               0.9979      1 1.403e+07  < 2e-16 ***
-#   s(Users_rated)               1.0000      1 1.947e+09  < 2e-16 ***
-#   s(Min_age)                   0.9799      1 5.602e+05  < 2e-16 ***
-#   s(Owned)                     0.9999      1 1.087e+10  < 2e-16 ***
-#   s(Negotiation)               0.9428      1 3.086e+03 0.002473 ** 
-#   s(Political)                 0.8590      1 8.656e+02 0.008105 ** 
-#   s(Fantasy)                   0.6539      1 2.232e+03 0.084319 .  
-#   s(Abstract.Strategy)         0.8229      1 3.225e+02 0.019576 *  
-#   s(Medieval)                  0.9171      1 2.194e+04 1.55e-05 ***
-#   s(Ancient)                   0.9561      1 1.310e+04  < 2e-16 ***
-#   s(Territory.Building)        0.8960      1 3.848e+04 4.99e-05 ***
-#   s(Civilization)              0.8331      1 1.674e+04 0.001498 ** 
-#   s(Nautical)                  0.9667      1 1.220e+03  < 2e-16 ***
-#   s(Exploration)               0.7668      1 9.024e+03 0.015864 *  
-#   s(Farming)                   0.9305      1 2.497e+04 2.25e-05 ***
-#   s(Bluffing)                  0.9390      1 9.661e+03 2.77e-06 ***
-#   s(Science.Fiction)           0.8954      1 2.578e+03 0.002845 ** 
-#   s(Print...Play)              0.9890      1 1.226e+04  < 2e-16 ***
-#   s(Miniatures)                0.9620      1 7.781e+03 6.73e-07 ***
-#   s(City.Building)             0.9658      1 3.543e+05  < 2e-16 ***
-#   s(Wargame)                   0.9878      1 1.481e+06  < 2e-16 ***
-#   s(Adventure)                 0.9999      1 1.735e+04 2.85e-05 ***
-#   s(Renaissance)               0.9607      1 3.116e+04  < 2e-16 ***
-#   s(Modern.Warfare)            0.8272      1 1.008e+03 0.019927 *  
-#   s(Humor)                     0.9202      1 3.754e+02 3.14e-05 ***
-#   s(Deduction)                 0.6313      1 6.762e+02 0.095964 .  
-#   s(Word.Game)                 0.6401      1 4.139e+01 0.070010 .  
-#   s(Aviation...Flight)         0.9346      1 8.717e+02 0.000179 ***
-#   s(Movies...TV...Radio.theme) 0.8519      1 4.684e+02 0.002794 ** 
-#   s(Party.Game)                0.9099      1 1.501e+03 4.35e-07 ***
-#   s(Memory)                    0.9166      1 2.171e+03 0.000294 ***
-#   s(Puzzle)                    0.9030      1 6.821e+02 0.000695 ***
-#   s(Real.time)                 0.9722      1 3.901e+02  < 2e-16 ***
-#   s(Trivia)                    0.9283      1 7.858e+03  < 2e-16 ***
-#   s(Industry...Manufacturing)  0.8950      1 8.083e+03 0.000217 ***
-#   s(Trains)                    0.8747      1 1.334e+03 0.000525 ***
-#   s(Animals)                   0.9746      1 5.024e+03  < 2e-16 ***
-#   s(X.Childrens.Game.)         0.9278      1 1.235e+04 9.30e-06 ***
-#   s(Transportation)            0.8613      1 7.682e+02 0.000228 ***
-#   s(Prehistoric)               0.8811      1 5.122e+02 0.001884 ** 
-#   s(Sports)                    0.9119      1 1.734e+03 0.000399 ***
-#   s(Napoleonic)                0.7667      1 8.894e+02 0.027440 *  
-#   s(Post.Napoleonic)           0.6654      1 3.372e+01 0.081926 .  
-#   s(Book)                      0.9268      1 3.816e+03 4.26e-05 ***
-#   s(Music)                     0.7869      1 9.794e+01 0.020579 *  
-#   s(Arabian)                   0.7620      1 7.610e+01 0.043870 *  
-#   s(Video.Game.Theme)          0.9039      1 1.856e+02 0.002760 ** 
-#   s(Mature...Adult)            0.9612      1 3.722e+02  < 2e-16 ***
+#   s(Users_rated)               0.9961      1  11583.70  < 2e-16 ***
+#   s(Year)                      0.9836      1    125.61  < 2e-16 ***
+#   s(weights)                   0.9958      1 369220.46  < 2e-16 ***
+#   s(Playing_time)              0.6354      1     20.97 0.088800 .  
+#   s(Min_age)                   0.9840      1   6008.77  < 2e-16 ***
+#   s(Economic)                  0.9929      1    865.65  < 2e-16 ***
+#   s(Negotiation)               0.9785      1    604.67  < 2e-16 ***
+#   s(Card.Game)                 0.9783      1   1494.30  < 2e-16 ***
+#   s(Fantasy)                   0.9645      1    379.93  < 2e-16 ***
+#   s(Medieval)                  0.8069      1     25.47 0.011910 *  
+#   s(Ancient)                   0.9474      1    127.37 3.73e-06 ***
+#   s(Territory.Building)        0.8449      1     39.47 0.003739 ** 
+#   s(Nautical)                  0.9281      1     59.96 0.000141 ***
+#   s(Exploration)               0.7880      1     39.92 0.026861 *  
+#   s(Farming)                   0.9349      1     74.52 1.92e-05 ***
+#   s(Bluffing)                  0.9543      1    294.44 3.41e-07 ***
+#   s(Collectible.Components)    0.9716      1    138.87  < 2e-16 ***
+#   s(Miniatures)                0.9845      1   1350.56  < 2e-16 ***
+#   s(City.Building)             0.9661      1    533.71  < 2e-16 ***
+#   s(Wargame)                   0.9910      1  34948.94  < 2e-16 ***
+#   s(Adventure)                 0.9652      1    133.91 0.000448 ***
+#   s(Renaissance)               0.9139      1     57.23 0.000147 ***
+#   s(Modern.Warfare)            0.9168      1    285.67 0.000103 ***
+#   s(Humor)                     0.9477      1    287.84 3.59e-06 ***
+#   s(Electronic)                0.9293      1     63.69 4.65e-05 ***
+#   s(Deduction)                 0.9705      1    360.16  < 2e-16 ***
+#   s(Aviation...Flight)         0.9533      1    100.68 2.90e-05 ***
+#   s(Movies...TV...Radio.theme) 0.9737      1    583.40  < 2e-16 ***
+#   s(Memory)                    0.9445      1    185.27 5.17e-06 ***
+#   s(Puzzle)                    0.9716      1    209.77  < 2e-16 ***
+#   s(Real.time)                 0.9767      1    531.09  < 2e-16 ***
+#   s(Trivia)                    0.9825      1   1277.74  < 2e-16 ***
+#   s(Industry...Manufacturing)  0.8632      1    104.79 0.005627 ** 
+#   s(Age.of.Reason)             0.8266      1     31.71 0.017524 *  
+#   s(Trains)                    0.9501      1    226.16 5.45e-05 ***
+#   s(Animals)                   0.9865      1    970.80  < 2e-16 ***
+#   s(X.Childrens.Game.)         0.9788      1   4865.08  < 2e-16 ***
+#   s(Action...Dexterity)        0.9713      1    563.38 4.81e-06 ***
+#   s(Math)                      0.8588      1     10.90 0.008435 ** 
+#   s(Video.Game.Theme)          0.7210      1      4.32 0.059212 .  
+#   s(Mature...Adult)            0.9664      1    185.42  < 2e-16 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# R-sq.(adj) =  0.621   Deviance explained = 62.2%
-# GCV = 1.5133e+07  Scale est. = 1.5102e+07  n = 21631
+# R-sq.(adj) =  0.309   Deviance explained =   31%
+# GCV = 2.7699e+07  Scale est. = 2.7648e+07  n = 21461
+
+
+#dev.new()
+#plot(model_re1)#?
+
+#1.1) model assessment----------------------------------
+gam.check(model_re1)
+# 
+# Method: GCV   Optimizer: magic
+# Smoothing parameter selection converged after 21 iterations.
+# The RMS GCV score gradient at convergence was 1.361296 .
+# The Hessian was positive definite.
+# Model rank =  42 / 42 
+# 
+# Basis dimension (k) checking results. Low p-value (k-index<1) may
+# indicate that k is too low, especially if edf is close to k'.
+# 
+#                                 k'   edf k-index p-value    
+#   s(Users_rated)               1.000 0.996    0.53  <2e-16 *** BAD
+#   s(Year)                      1.000 0.984    0.93  <2e-16 *** BAD
+#   s(weights)                   1.000 0.996    0.81  <2e-16 *** BAD
 
 
 
+concurvity(model_re1, full = FALSE)
 
+# $worst
+#                                   para s(Users_rated)     s(Year)  s(weights)
+# para                         1.000000000   5.336732e-02 0.988992161 0.860317142
+# s(Users_rated)               0.053367318   1.000000e+00 0.053172348 0.060794484
+# s(Year)                      0.988992161   5.317235e-02 1.000000000 0.853847956
+# s(weights)                   0.860317142   6.079448e-02 0.853847956 1.000000000
+# s(Playing_time)              0.027812914   1.173565e-03 0.027798928 0.050774638
+# s(Min_age)                   0.874860726   5.800155e-02 0.871586018 0.825689489                  0.070688352    0.082784996     9.716504e-01   0.076267680
+
+#==>interazioni:
+#   s(Year)      para
+#   s(weights)   para
+#   s(Year)      s(weights)
+#   s(Min_age)   para     
+#   s(Min_age)   s(Year) 
+#   s(Min_age)   s(weights) 
+
+#let's try to deal with interactions and if the model is still lacking basis I'll change smoothing method
+
+names="Rank~"
+for(i in colnames(mydata[,c(-1,-2,-to_delete_ind)])){
+  names=paste(names,"+ ", "s(",i,",bs='re' )")
+}
+names=paste(names,"-1+s(I(weights*Min_age))+s(I(Year*Min_age))+s(I(Year*weights))")
+formula=as.formula(names)
+model_re1.1=gam(formula,data = mydata)
+model_re1.1$type="gam"
+summary(model_re1.1)
+# 
+# Approximate significance of smooth terms:
+#   edf Ref.df         F  p-value    
+#   s(Users_rated)               9.977e-01  1.000 1.385e+04  < 2e-16 ***
+#   s(Year)                      5.725e-01  1.000 5.432e+05  < 2e-16 ***
+#   s(weights)                   3.914e-09  1.000 0.000e+00 1.09e-05 ***
+#   s(Playing_time)              7.145e-04  1.000 0.000e+00 0.577557    
+#   s(Min_age)                   7.711e-01  1.000 4.149e+06  < 2e-16 ***
+#   s(Economic)                  9.627e-01  1.000 4.054e+02  < 2e-16 ***
+#   s(Negotiation)               9.714e-01  1.000 3.714e+02  < 2e-16 ***
+#   s(Card.Game)                 1.000e+00  1.000 1.899e+03  < 2e-16 ***
+#   s(Fantasy)                   9.538e-01  1.000 2.411e+02 0.000348 ***
+#   s(Medieval)                  5.858e-01  1.000 6.264e+00 0.119274    
+#   s(Ancient)                   9.366e-01  1.000 5.643e+01 0.000314 ***
+#   s(Territory.Building)        7.562e-01  1.000 1.233e+01 0.033821 *  
+#   s(Nautical)                  9.336e-01  1.000 4.398e+01 0.000713 ***
+#   s(Exploration)               6.360e-01  1.000 1.240e+01 0.105928    
+#   s(Farming)                   9.438e-01  1.000 5.177e+01 2.32e-05 ***
+#   s(Bluffing)                  9.632e-01  1.000 3.375e+02 2.24e-07 ***
+#   s(Collectible.Components)    9.728e-01  1.000 1.444e+02  < 2e-16 ***
+#   s(Miniatures)                9.991e-01  1.000 4.700e+02  < 2e-16 ***
+#   s(City.Building)             9.693e-01  1.000 2.045e+02  < 2e-16 ***
+#   s(Wargame)                   9.643e-01  1.000 6.569e+03  < 2e-16 ***
+#   s(Adventure)                 9.663e-01  1.000 1.459e+02 9.24e-05 ***
+#   s(Renaissance)               9.235e-01  1.000 3.264e+01 0.000198 ***
+#   s(Modern.Warfare)            8.787e-01  1.000 3.901e+01 0.000400 ***
+#   s(Humor)                     8.808e-01  1.000 6.802e+01 0.001015 ** 
+#   s(Electronic)                9.149e-01  1.000 3.488e+01 8.49e-05 ***
+#   s(Deduction)                 9.738e-01  1.000 3.313e+02  < 2e-16 ***
+#   s(Aviation...Flight)         9.557e-01  1.000 3.503e+01 0.000154 ***
+#   s(Movies...TV...Radio.theme) 9.680e-01  1.000 7.940e+02  < 2e-16 ***
+#   s(Memory)                    9.098e-01  1.000 5.295e+01 0.000280 ***
+#   s(Puzzle)                    9.688e-01  1.000 1.838e+02  < 2e-16 ***
+#   s(Real.time)                 9.855e-01  1.000 3.718e+02  < 2e-16 ***
+#   s(Trivia)                    9.722e-01  1.000 4.103e+02  < 2e-16 ***
+#   s(Industry...Manufacturing)  9.024e-01  1.000 3.119e+01 0.002862 ** 
+#   s(Age.of.Reason)             8.458e-01  1.000 8.777e+00 0.018173 *  
+#   s(Trains)                    9.757e-01  1.000 8.354e+01 1.79e-06 ***
+#   s(Animals)                   9.916e-01  1.000 4.663e+02  < 2e-16 ***
+#   s(X.Childrens.Game.)         8.691e-01  1.000 1.882e+02 0.000519 ***
+#   s(Action...Dexterity)        9.990e-01  1.000 3.737e+02  < 2e-16 ***
+#   s(Math)                      8.566e-01  1.000 1.034e+01 0.007847 ** 
+#   s(Video.Game.Theme)          7.847e-01  1.000 9.626e+00 0.026233 *  
+#   s(Mature...Adult)            4.297e-08  1.000 0.000e+00 0.461275    
+#   s(I(weights * Min_age))      8.232e+00  8.823 7.063e+00  < 2e-16 ***
+#   s(I(Year * Min_age))         8.759e+00  8.977 5.398e+01  < 2e-16 ***
+#   s(I(Year * weights))         8.644e+00  8.959 4.927e+01  < 2e-16 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.325   Deviance explained =   83%
+# GCV = 2.7083e+07  Scale est. = 2.7007e+07  n = 21461
+
+
+gam.check(model_re1.1)
+#                                   k'    edf     k-index p-value    
+# s(Users_rated)               1.00e+00 9.96e-01    0.55  <2e-16 ***
+# s(Year)                      1.00e+00 7.23e-01    0.94  <2e-16 ***
+# s(weights)                   1.00e+00 9.60e-01    0.82  <2e-16 ***
+# s(Playing_time)              1.00e+00 1.87e-02    0.97   0.025 * 
+concurvity(model_re1.1, full = FALSE)$worst
+
+#                               s(Users_rated)      s(Year)  s(weights) s(Playing_time)
+# s(Users_rated)                 1.000000e+00 0.0531723478 0.060794484    1.173565e-03
+# s(Year)                        5.317235e-02 1.0000000000 0.853847956    2.779893e-02
+# s(weights)                     6.079448e-02 0.8538479562 1.000000000    5.077464e-02
+# s(Playing_time)                1.173565e-03 0.0277989276 0.050774638    1.000000e+00
+# s(Min_age)                     5.800155e-02 0.8715860176 0.825689489    2.925919e-02
+
+#still very correlated:
+# s(weights) vs  s(Year)
+# s(weights) vs  s(Min_age)
+# s(Min_age) vs  s(Year)
+
+
+
+scatterplot(mydata$weights,mydata$Min_age)
+scatterplot(mydata$Min_age[mydata$Year>-1000],mydata$Year[mydata$Year>-1000])
+scatterplot(mydata$weights[mydata$Year>1800],mydata$Year[mydata$Year>1800])
+#boh
+#dev.new()
+#plot(model_re1.1,select = 3, all.terms = TRUE)
 
 
 #2)natural splines--------------------------------------------------------------
@@ -472,20 +594,20 @@ summary(model_ns)
 #probably is over fitting data
 #i don't even show you the summary, trust me. Just know that:
 
-## Residual standard error: 2282 on 21559 degrees of freedom
-# Multiple R-squared:  0.8698,	Adjusted R-squared:  0.8693 
-# F-statistic:  2028 on 71 and 21559 DF,  p-value: < 2.2e-16
+## Residual standard error: 3869 on 21407 degrees of freedom
+# Multiple R-squared:  0.6268,	Adjusted R-squared:  0.6259 
+# F-statistic: 678.3 on 53 and 21407 DF,  p-value: < 2.2e-16
 
 #i don't even try to do perm test since the degree of the splines of categ. variables is too high
 #let's reduce the latter
 
 #2.2) degree 3 for num and 1 for cat----------------------------------------------
 names="Rank~"
-for(i in colnames(mydata[,3:8])){
+for(i in colnames(mydata[,3:7])){
   names=paste(names, "+ ","ns(",i,",df=3)")
 }
 
-for(i in colnames(mydata[,9:ncol(mydata)])){
+for(i in colnames(mydata[,8:ncol(mydata)])){
   names=paste(names, "+ ","ns(",i,",df=1)")
 }
 
@@ -497,92 +619,74 @@ summary(model_ns1)
 # hist(model_gam_ns1$residuals)
 # qqnorm(model_gam_ns1$residuals)
 # #pretty normal :')
-
-
-# Call:
-#   lm(formula = formula, data = mydata)
 # 
 # Residuals:
 #   Min       1Q   Median       3Q      Max 
-# -16572.9  -1454.5     22.8   1251.0  16641.7 
-#
+# -25168.2  -2598.8   -585.7   1801.8  25996.9 
+# 
 # Coefficients:
 #   Estimate Std. Error t value Pr(>|t|)    
-#   (Intercept)                            23567.02     386.64  60.953  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)1              -18929.32     190.99 -99.114  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)2               -4500.18     782.67  -5.750 9.05e-09 ***
-#   ns(Avg_ratings, df = 3)3               -8658.69     266.55 -32.485  < 2e-16 ***
-#   ns(Users_rated, df = 3)1                1545.25    1529.16   1.011 0.312256    
-#   ns(Users_rated, df = 3)2                4710.51    2181.92   2.159 0.030870 *  
-#   ns(Users_rated, df = 3)3               23538.70    4467.57   5.269 1.39e-07 ***
-#   ns(Max_players, df = 3)1                  34.38     675.68   0.051 0.959421    
-#   ns(Max_players, df = 3)2                -687.97     718.93  -0.957 0.338604    
-#   ns(Max_players, df = 3)3                -486.34    1314.92  -0.370 0.711487    
-#   ns(Playing_time, df = 3)1              -1087.31    1283.56  -0.847 0.396950    
-#   ns(Playing_time, df = 3)2               1123.88    1195.45   0.940 0.347163    
-#   ns(Playing_time, df = 3)3               2326.13    2249.07   1.034 0.301025    
-#   ns(Min_age, df = 3)1                    -435.62     115.40  -3.775 0.000161 ***
-#   ns(Min_age, df = 3)2                    1095.84     304.19   3.602 0.000316 ***
-#   ns(Min_age, df = 3)3                    2444.16     461.83   5.292 1.22e-07 ***
-#   ns(Owned, df = 3)1                    -25089.96    1576.39 -15.916  < 2e-16 ***
-#   ns(Owned, df = 3)2                    -21747.30    2379.58  -9.139  < 2e-16 ***
-#   ns(Owned, df = 3)3                    -15078.70    4875.84  -3.093 0.001987 ** 
-#   ns(Negotiation, df = 1)                  364.26     117.99   3.087 0.002023 ** 
-#   ns(Political, df = 1)                   -219.68     135.06  -1.627 0.103835    
-#   ns(Fantasy, df = 1)                      117.92      65.77   1.793 0.073009 .  
-#   ns(Abstract.Strategy, df = 1)             16.71      81.07   0.206 0.836673    
-#   ns(Medieval, df = 1)                    -245.91      94.01  -2.616 0.008907 ** 
-#   ns(Ancient, df = 1)                     -380.42     111.67  -3.407 0.000659 ***
-#   ns(Territory.Building, df = 1)          -136.97     131.64  -1.040 0.298126    
-#   ns(Civilization, df = 1)                -655.55     161.98  -4.047 5.20e-05 ***
-#   ns(Nautical, df = 1)                    -162.20     117.18  -1.384 0.166293    
-#   ns(Exploration, df = 1)                  -72.42     106.57  -0.680 0.496793    
-#   ns(Farming, df = 1)                     -339.88     187.55  -1.812 0.069969 .  
-#   ns(Bluffing, df = 1)                    -219.34      90.65  -2.420 0.015546 *  
-#   ns(Science.Fiction, df = 1)               73.00      77.51   0.942 0.346294    
-#   ns(Collectible.Components, df = 1)       283.26     155.92   1.817 0.069272 .  
-#   ns(Dice, df = 1)                         151.56      70.65   2.145 0.031955 *  
-#   ns(Fighting, df = 1)                      47.05      79.79   0.590 0.555409    
-#   ns(Print...Play, df = 1)                 492.40     120.38   4.090 4.32e-05 ***
-#   ns(Miniatures, df = 1)                    45.13      99.90   0.452 0.651455    
-#   ns(City.Building, df = 1)               -583.12     129.57  -4.500 6.82e-06 ***
-#   ns(Wargame, df = 1)                      696.48      72.81   9.566  < 2e-16 ***
-#   ns(Adventure, df = 1)                    263.08      96.37   2.730 0.006342 ** 
-#   ns(Renaissance, df = 1)                 -767.11     178.69  -4.293 1.77e-05 ***
-#   ns(Modern.Warfare, df = 1)               489.87     154.64   3.168 0.001538 ** 
-#   ns(Humor, df = 1)                        353.20      89.24   3.958 7.59e-05 ***
-#   ns(Electronic, df = 1)                   504.37     204.27   2.469 0.013553 *  
-#   ns(Deduction, df = 1)                     94.45      92.82   1.018 0.308900    
-#   ns(Word.Game, df = 1)                     84.78     136.39   0.622 0.534209    
-#   ns(Aviation...Flight, df = 1)           -145.53     176.26  -0.826 0.409004    
-#   ns(Movies...TV...Radio.theme, df = 1)    276.87      93.63   2.957 0.003109 ** 
-#   ns(Party.Game, df = 1)                   354.47      78.68   4.505 6.67e-06 ***
-#   ns(Memory, df = 1)                        34.50     128.97   0.267 0.789094    
-#   ns(Puzzle, df = 1)                      -189.03     114.86  -1.646 0.099839 .  
-#   ns(Real.time, df = 1)                   -359.83     110.68  -3.251 0.001152 ** 
-#   ns(Trivia, df = 1)                        55.24     128.91   0.429 0.668264    
-#   ns(Industry...Manufacturing, df = 1)    -432.17     170.04  -2.542 0.011043 *  
-#   ns(Trains, df = 1)                      -340.37     168.04  -2.026 0.042824 *  
-#   ns(Animals, df = 1)                      -90.33      84.65  -1.067 0.285956    
-#   ns(X.Childrens.Game., df = 1)             35.91      84.55   0.425 0.671072    
-#   ns(Transportation, df = 1)              -459.70     159.05  -2.890 0.003852 ** 
-#   ns(Prehistoric, df = 1)                 -338.23     227.35  -1.488 0.136846    
-#   ns(Sports, df = 1)                        18.12     131.73   0.138 0.890602    
-#   ns(Game.System, df = 1)                  542.45     531.07   1.021 0.307068    
-#   ns(Medical, df = 1)                     -328.49     307.32  -1.069 0.285135    
-#   ns(Napoleonic, df = 1)                   165.07     168.35   0.980 0.326860    
-#   ns(Post.Napoleonic, df = 1)               85.11     190.59   0.447 0.655183    
-#   ns(Book, df = 1)                         -73.60     222.33  -0.331 0.740620    
-#   ns(Music, df = 1)                        710.71     311.02   2.285 0.022318 *  
-#   ns(Arabian, df = 1)                     -387.80     281.75  -1.376 0.168720    
-#   ns(Video.Game.Theme, df = 1)             659.65     155.46   4.243 2.21e-05 ***
-#   ns(Mature...Adult, df = 1)               200.12     260.39   0.769 0.442182    
-# ---
+#   (Intercept)                            16118.90    1868.62   8.626  < 2e-16 ***
+#   ns(Users_rated, df = 3)1              -34648.07     558.29 -62.061  < 2e-16 ***
+#   ns(Users_rated, df = 3)2              -22773.16     677.50 -33.613  < 2e-16 ***
+#   ns(Users_rated, df = 3)3               10981.23    1515.81   7.244 4.49e-13 ***
+#   ns(Year, df = 3)1                       2009.27    1198.80   1.676 0.093740 .  
+#   ns(Year, df = 3)2                       5961.55    4065.95   1.466 0.142605    
+#   ns(Year, df = 3)3                      -6515.27     478.27 -13.623  < 2e-16 ***
+#   ns(weights, df = 3)1                   -5567.80     177.81 -31.313  < 2e-16 ***
+#   ns(weights, df = 3)2                   -6793.72     246.13 -27.602  < 2e-16 ***
+#   ns(weights, df = 3)3                   -4380.91     292.51 -14.977  < 2e-16 ***
+#   ns(Playing_time, df = 3)1              -4122.08    2269.68  -1.816 0.069361 .  
+#   ns(Playing_time, df = 3)2               1458.42    2062.68   0.707 0.479544    
+#   ns(Playing_time, df = 3)3               6093.81    3815.51   1.597 0.110255    
+#   ns(Min_age, df = 3)1                    -404.69     203.31  -1.991 0.046544 *  
+#   ns(Min_age, df = 3)2                    3396.02     522.95   6.494 8.54e-11 ***
+#   ns(Min_age, df = 3)3                    4465.90     791.15   5.645 1.67e-08 ***
+#   ns(Economic, df = 1)                     859.19     147.60   5.821 5.93e-09 ***
+#   ns(Negotiation, df = 1)                 1248.50     201.11   6.208 5.47e-10 ***
+#   ns(Card.Game, df = 1)                   -270.59      80.38  -3.366 0.000763 ***
+#   ns(Fantasy, df = 1)                       20.75     109.64   0.189 0.849909    
+#   ns(Medieval, df = 1)                    -197.98     159.20  -1.244 0.213653    
+#   ns(Ancient, df = 1)                     -451.73     185.69  -2.433 0.014995 *  
+#   ns(Territory.Building, df = 1)           167.12     222.29   0.752 0.452169    
+#   ns(Nautical, df = 1)                    -246.34     198.15  -1.243 0.213807    
+#   ns(Exploration, df = 1)                  109.14     180.50   0.605 0.545415    
+#   ns(Farming, df = 1)                     -746.25     318.58  -2.342 0.019169 *  
+#   ns(Bluffing, df = 1)                    -802.27     154.43  -5.195 2.07e-07 ***
+#   ns(Collectible.Components, df = 1)      1126.29     268.26   4.199 2.70e-05 ***
+#   ns(Miniatures, df = 1)                  -817.32     161.08  -5.074 3.93e-07 ***
+#   ns(City.Building, df = 1)               -730.05     220.63  -3.309 0.000938 ***
+#   ns(Wargame, df = 1)                     -659.71     118.91  -5.548 2.93e-08 ***
+#   ns(Adventure, df = 1)                    900.01     163.04   5.520 3.42e-08 ***
+#   ns(Renaissance, df = 1)                 -872.00     302.26  -2.885 0.003919 ** 
+#   ns(Modern.Warfare, df = 1)              1153.58     259.05   4.453 8.50e-06 ***
+#   ns(Humor, df = 1)                        606.60     150.08   4.042 5.32e-05 ***
+#   ns(Electronic, df = 1)                  1474.94     347.53   4.244 2.20e-05 ***
+#   ns(Deduction, df = 1)                   -216.84     157.74  -1.375 0.169248    
+#   ns(Word.Game, df = 1)                   -706.92     229.98  -3.074 0.002117 ** 
+#   ns(Aviation...Flight, df = 1)           -176.41     297.38  -0.593 0.553051    
+#   ns(Movies...TV...Radio.theme, df = 1)   1775.48     156.82  11.321  < 2e-16 ***
+#   ns(Memory, df = 1)                       287.27     219.61   1.308 0.190866    
+#   ns(Puzzle, df = 1)                      -521.24     195.59  -2.665 0.007705 ** 
+#   ns(Real.time, df = 1)                   -604.63     188.80  -3.202 0.001365 ** 
+#   ns(Trivia, df = 1)                      1227.26     214.95   5.710 1.15e-08 ***
+#   ns(Industry...Manufacturing, df = 1)    -336.75     295.82  -1.138 0.254984    
+#   ns(Age.of.Reason, df = 1)               -732.11     381.91  -1.917 0.055256 .  
+#   ns(Trains, df = 1)                     -1960.98     271.39  -7.226 5.15e-13 ***
+#   ns(Animals, df = 1)                     -221.34     143.58  -1.542 0.123191    
+#   ns(X.Childrens.Game., df = 1)            751.97     148.66   5.058 4.26e-07 ***
+#   ns(Sports, df = 1)                     -1210.16     222.26  -5.445 5.24e-08 ***
+#   ns(Action...Dexterity, df = 1)          -701.15     164.44  -4.264 2.02e-05 ***
+#   ns(Math, df = 1)                         374.79     397.40   0.943 0.345641    
+#   ns(Video.Game.Theme, df = 1)            1424.15     263.23   5.410 6.36e-08 ***
+#   ns(Mature...Adult, df = 1)              1121.48     441.73   2.539 0.011130 *  
+#   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 2282 on 21562 degrees of freedom
-# Multiple R-squared:  0.8697,	Adjusted R-squared:  0.8693 
-# F-statistic:  2117 on 68 and 21562 DF,  p-value: < 2.2e-16
+# Residual standard error: 3869 on 21407 degrees of freedom
+# Multiple R-squared:  0.6268,	Adjusted R-squared:  0.6259 
+# F-statistic: 678.3 on 53 and 21407 DF,  p-value: < 2.2e-16
+
 
 #gam::plot.Gam(model_ns1, se=TRUE)
 
@@ -595,11 +699,11 @@ to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
 #let's delete them:
 to_delete_ind=which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
 names="Rank~"
-for(i in colnames(mydata[,c(3:8)[!c(3:8)%in%to_delete_ind[which(to_delete_ind<=8)]]])){
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
   names=paste(names, "+ ","ns(",i,",df=3)")
 }
 
-for(i in colnames(mydata[,c(-seq(1:8),-to_delete_ind[which(to_delete_ind>8)])])){
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
   names=paste(names, "+ ","ns(",i,",df=1)")
 }
 
@@ -608,72 +712,71 @@ model_ns1.1<-lm(formula, data = mydata)
 model_ns1.1$type="lm"
 summary(model_ns1.1)
 
-# Call:
-#   lm(formula = formula, data = mydata)
-# 
 # Residuals:
-#   Min       1Q   Median       3Q      Max 
-# -20234.9  -1721.0   -147.1   1632.8  15439.0 
+#   Min     1Q Median     3Q    Max 
+# -24516  -2793   -752   1942  25593 
 # 
 # Coefficients:
 #   Estimate Std. Error t value Pr(>|t|)    
-#   (Intercept)                            24887.65     413.83  60.140  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)1              -19293.01     209.30 -92.177  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)2               -4283.86     862.52  -4.967 6.86e-07 ***
-#   ns(Avg_ratings, df = 3)3               -8945.46     290.48 -30.796  < 2e-16 ***
-#   ns(Min_age, df = 3)1                     100.12     113.75   0.880 0.378777    
-#   ns(Min_age, df = 3)2                     379.56     310.05   1.224 0.220886    
-#   ns(Min_age, df = 3)3                    1953.97     457.72   4.269 1.97e-05 ***
-#   ns(Owned, df = 3)1                    -25383.53     375.53 -67.593  < 2e-16 ***
-#   ns(Owned, df = 3)2                    -17754.49     492.41 -36.056  < 2e-16 ***
-#   ns(Owned, df = 3)3                     11483.99    1085.24  10.582  < 2e-16 ***
-#   ns(Negotiation, df = 1)                  274.60     127.02   2.162 0.030640 *  
-#   ns(Fantasy, df = 1)                      189.84      69.82   2.719 0.006554 ** 
-#   ns(Medieval, df = 1)                    -315.98     102.89  -3.071 0.002136 ** 
-#   ns(Ancient, df = 1)                     -533.69     122.41  -4.360 1.31e-05 ***
-#   ns(Civilization, df = 1)                -878.27     176.69  -4.971 6.73e-07 ***
-#   ns(Farming, df = 1)                     -379.48     205.84  -1.844 0.065260 .  
-#   ns(Bluffing, df = 1)                    -341.39      95.92  -3.559 0.000373 ***
-#   ns(Collectible.Components, df = 1)       -58.01     169.19  -0.343 0.731705    
-#   ns(Dice, df = 1)                         158.01      77.60   2.036 0.041750 *  
-#   ns(Print...Play, df = 1)                 428.56     130.70   3.279 0.001044 ** 
-#   ns(City.Building, df = 1)               -742.48     142.21  -5.221 1.80e-07 ***
-#   ns(Wargame, df = 1)                     1983.60      67.02  29.597  < 2e-16 ***
-#   ns(Adventure, df = 1)                    270.29      99.08   2.728 0.006379 ** 
-#   ns(Renaissance, df = 1)                 -871.28     196.40  -4.436 9.20e-06 ***
-#   ns(Modern.Warfare, df = 1)               509.33     168.05   3.031 0.002442 ** 
-#   ns(Humor, df = 1)                        288.56      97.30   2.966 0.003023 ** 
-#   ns(Electronic, df = 1)                   431.69     224.94   1.919 0.054983 .  
-#   ns(Movies...TV...Radio.theme, df = 1)    666.14     101.07   6.591 4.48e-11 ***
-#   ns(Party.Game, df = 1)                   537.53      80.42   6.684 2.39e-11 ***
-#   ns(Puzzle, df = 1)                      -104.92     126.00  -0.833 0.405000    
-#   ns(Real.time, df = 1)                   -410.84     121.11  -3.392 0.000694 ***
-#   ns(Industry...Manufacturing, df = 1)    -685.00     187.22  -3.659 0.000254 ***
-#   ns(Trains, df = 1)                      -591.07     184.21  -3.209 0.001335 ** 
-#   ns(Transportation, df = 1)              -610.45     174.38  -3.501 0.000465 ***
-#   ns(Music, df = 1)                        765.05     343.09   2.230 0.025764 *  
-#   ns(Video.Game.Theme, df = 1)             861.49     171.12   5.034 4.83e-07 ***
+#   (Intercept)                            19170.18     146.29 131.046  < 2e-16 ***
+#   ns(Users_rated, df = 3)1              -32835.34     589.15 -55.733  < 2e-16 ***
+#   ns(Users_rated, df = 3)2              -21640.27     717.03 -30.180  < 2e-16 ***
+#   ns(Users_rated, df = 3)3               11046.64    1606.95   6.874 6.40e-12 ***
+#   ns(weights, df = 3)1                   -5976.68     184.36 -32.419  < 2e-16 ***
+#   ns(weights, df = 3)2                   -7223.88     250.32 -28.859  < 2e-16 ***
+#   ns(weights, df = 3)3                   -5036.49     294.09 -17.126  < 2e-16 ***
+#   ns(Min_age, df = 3)1                    -579.72     212.49  -2.728 0.006372 ** 
+#   ns(Min_age, df = 3)2                    1311.20     552.25   2.374 0.017591 *  
+#   ns(Min_age, df = 3)3                     943.76     835.06   1.130 0.258413    
+#   ns(Economic, df = 1)                    1234.09     151.77   8.131 4.48e-16 ***
+#   ns(Negotiation, df = 1)                 1732.81     212.56   8.152 3.77e-16 ***
+#   ns(Card.Game, df = 1)                   -527.57      84.44  -6.248 4.24e-10 ***
+#   ns(Ancient, df = 1)                     -307.47     196.23  -1.567 0.117163    
+#   ns(Farming, df = 1)                    -1238.66     335.99  -3.687 0.000228 ***
+#   ns(Bluffing, df = 1)                    -814.67     157.25  -5.181 2.23e-07 ***
+#   ns(Collectible.Components, df = 1)      2313.84     282.53   8.190 2.76e-16 ***
+#   ns(Miniatures, df = 1)                 -1385.25     168.82  -8.206 2.42e-16 ***
+#   ns(City.Building, df = 1)              -1048.54     232.77  -4.505 6.68e-06 ***
+#   ns(Wargame, df = 1)                      535.06     119.46   4.479 7.53e-06 ***
+#   ns(Adventure, df = 1)                    717.85     158.95   4.516 6.33e-06 ***
+#   ns(Renaissance, df = 1)                 -730.16     319.68  -2.284 0.022377 *  
+#   ns(Modern.Warfare, df = 1)              1158.58     274.15   4.226 2.39e-05 ***
+#   ns(Humor, df = 1)                        824.57     158.82   5.192 2.10e-07 ***
+#   ns(Electronic, df = 1)                  2051.38     368.03   5.574 2.52e-08 ***
+#   ns(Word.Game, df = 1)                   -162.67     243.22  -0.669 0.503611    
+#   ns(Movies...TV...Radio.theme, df = 1)   1938.72     165.83  11.691  < 2e-16 ***
+#   ns(Puzzle, df = 1)                     -1388.12     205.98  -6.739 1.64e-11 ***
+#   ns(Real.time, df = 1)                  -1001.92     199.53  -5.021 5.17e-07 ***
+#   ns(Trivia, df = 1)                      2244.97     226.38   9.917  < 2e-16 ***
+#   ns(Age.of.Reason, df = 1)               -717.89     404.64  -1.774 0.076054 .  
+#   ns(Trains, df = 1)                     -1581.91     286.37  -5.524 3.35e-08 ***
+#   ns(X.Childrens.Game., df = 1)           1265.18     153.30   8.253  < 2e-16 ***
+#   ns(Sports, df = 1)                      -514.38     234.73  -2.191 0.028435 *  
+#   ns(Action...Dexterity, df = 1)          -697.05     173.81  -4.010 6.08e-05 ***
+#   ns(Video.Game.Theme, df = 1)             871.20     278.51   3.128 0.001762 ** 
+#   ns(Mature...Adult, df = 1)              2120.27     467.96   4.531 5.90e-06 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 2522 on 21595 degrees of freedom
-# Multiple R-squared:  0.8406,	Adjusted R-squared:  0.8403 
-# F-statistic:  3253 on 35 and 21595 DF,  p-value: < 2.2e-16
+# Residual standard error: 4104 on 21424 degrees of freedom
+# Multiple R-squared:  0.5797,	Adjusted R-squared:  0.579 
+# F-statistic: 820.7 on 36 and 21424 DF,  p-value: < 2.2e-16
+
 
 #let's do perm sel one more time
 R2adj=R_extr(model_ns1.1)
 R2adj.perm=perm_sel(model_ns1.1)
 thres=0.05
 to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
-#all true again
-#let's delete them:
-to_delete_ind=cbind(to_delete_ind,which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE])))
+
+to_delete_ind=c(to_delete_ind,which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE])))
+
 names="Rank~"
-for(i in colnames(mydata[,c(3:8)[!c(3:8)%in%to_delete_ind[which(to_delete_ind<=8)]]])){
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
   names=paste(names, "+ ","ns(",i,",df=3)")
 }
 
-for(i in colnames(mydata[,c(-seq(1:8),-to_delete_ind[which(to_delete_ind>8)])])){
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
   names=paste(names, "+ ","ns(",i,",df=1)")
 }
 
@@ -682,56 +785,57 @@ model_ns1.2<-lm(formula, data = mydata)
 summary(model_ns1.2)
 # Residuals:
 #   Min       1Q   Median       3Q      Max 
-# -20205.9  -1728.0   -142.3   1645.4  15386.9 
-# 
+# -24491.7  -2802.8   -749.7   1953.0  25713.0 
+
 # Coefficients:
 #   Estimate Std. Error t value Pr(>|t|)    
-#   (Intercept)                            24709.94     411.20  60.092  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)1              -19320.13     209.33 -92.293  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)2               -4499.22     863.59  -5.210 1.91e-07 ***
-#   ns(Avg_ratings, df = 3)3               -8748.71     290.22 -30.145  < 2e-16 ***
-#   ns(Owned, df = 3)1                    -25440.19     375.89 -67.680  < 2e-16 ***
-#   ns(Owned, df = 3)2                    -17845.01     492.99 -36.197  < 2e-16 ***
-#   ns(Owned, df = 3)3                     11340.92    1087.22  10.431  < 2e-16 ***
-#   ns(Negotiation, df = 1)                  307.71     127.11   2.421 0.015492 *  
-#   ns(Fantasy, df = 1)                      216.96      69.35   3.129 0.001759 ** 
-#   ns(Medieval, df = 1)                    -306.21     102.99  -2.973 0.002951 ** 
-#   ns(Ancient, df = 1)                     -522.50     122.58  -4.263 2.03e-05 ***
-#   ns(Civilization, df = 1)                -804.64     176.66  -4.555 5.27e-06 ***
-#   ns(Farming, df = 1)                     -395.90     206.22  -1.920 0.054898 .  
-#   ns(Bluffing, df = 1)                    -357.61      95.98  -3.726 0.000195 ***
-#   ns(Dice, df = 1)                         135.23      77.58   1.743 0.081342 .  
-#   ns(Print...Play, df = 1)                 428.74     130.79   3.278 0.001047 ** 
-#   ns(City.Building, df = 1)               -744.17     142.37  -5.227 1.74e-07 ***
-#   ns(Wargame, df = 1)                     2095.51      63.60  32.947  < 2e-16 ***
-#   ns(Adventure, df = 1)                    298.12      99.03   3.010 0.002613 ** 
-#   ns(Renaissance, df = 1)                 -829.06     196.56  -4.218 2.48e-05 ***
-#   ns(Modern.Warfare, df = 1)               537.84     168.34   3.195 0.001400 ** 
-#   ns(Humor, df = 1)                        367.33      97.01   3.787 0.000153 ***
-#   ns(Electronic, df = 1)                   425.02     225.23   1.887 0.059163 .  
-#   ns(Movies...TV...Radio.theme, df = 1)    703.31     100.83   6.975 3.14e-12 ***
-#   ns(Party.Game, df = 1)                   633.53      79.55   7.964 1.75e-15 ***
-#   ns(Real.time, df = 1)                   -496.85     119.20  -4.168 3.08e-05 ***
-#   ns(Industry...Manufacturing, df = 1)    -620.49     187.10  -3.316 0.000914 ***
-#   ns(Trains, df = 1)                      -522.71     184.35  -2.835 0.004580 ** 
-#   ns(Transportation, df = 1)              -592.08     174.65  -3.390 0.000700 ***
-#   ns(Music, df = 1)                        836.27     343.64   2.434 0.014959 *  
-#   ns(Video.Game.Theme, df = 1)             876.81     171.23   5.121 3.07e-07 ***
+#   (Intercept)                            19551.73      96.18 203.275  < 2e-16 ***
+#   ns(Users_rated, df = 3)1              -32841.91     588.95 -55.763  < 2e-16 ***
+#   ns(Users_rated, df = 3)2              -21583.99     716.99 -30.104  < 2e-16 ***
+#   ns(Users_rated, df = 3)3               11118.00    1607.50   6.916 4.77e-12 ***
+#   ns(weights, df = 3)1                   -6224.89     173.52 -35.873  < 2e-16 ***
+#   ns(weights, df = 3)2                   -7450.68     243.37 -30.614  < 2e-16 ***
+#   ns(weights, df = 3)3                   -5201.63     291.17 -17.865  < 2e-16 ***
+#   ns(Economic, df = 1)                    1239.50     151.74   8.169 3.29e-16 ***
+#   ns(Negotiation, df = 1)                 1723.47     212.57   8.108 5.42e-16 ***
+#   ns(Card.Game, df = 1)                   -533.63      84.22  -6.336 2.40e-10 ***
+#   ns(Farming, df = 1)                    -1216.85     336.09  -3.621 0.000295 ***
+#   ns(Bluffing, df = 1)                    -820.46     157.23  -5.218 1.83e-07 ***
+#   ns(Collectible.Components, df = 1)      2317.01     282.41   8.204 2.45e-16 ***
+#   ns(Miniatures, df = 1)                 -1396.91     168.75  -8.278  < 2e-16 ***
+#   ns(City.Building, df = 1)              -1048.13     232.43  -4.509 6.54e-06 ***
+#   ns(Wargame, df = 1)                      450.51     117.60   3.831 0.000128 ***
+#   ns(Adventure, df = 1)                    702.34     158.79   4.423 9.77e-06 ***
+#   ns(Renaissance, df = 1)                 -755.67     319.73  -2.363 0.018113 *  
+#   ns(Modern.Warfare, df = 1)              1171.79     273.99   4.277 1.90e-05 ***
+#   ns(Humor, df = 1)                        757.07     157.78   4.798 1.61e-06 ***
+#   ns(Electronic, df = 1)                  2054.09     368.12   5.580 2.44e-08 ***
+#   ns(Movies...TV...Radio.theme, df = 1)   1943.02     165.52  11.739  < 2e-16 ***
+#   ns(Puzzle, df = 1)                     -1354.06     205.94  -6.575 4.98e-11 ***
+#   ns(Real.time, df = 1)                   -984.73     199.14  -4.945 7.68e-07 ***
+#   ns(Trivia, df = 1)                      2124.71     224.12   9.480  < 2e-16 ***
+#   ns(Age.of.Reason, df = 1)               -715.35     404.55  -1.768 0.077033 .  
+#   ns(Trains, df = 1)                     -1584.99     286.27  -5.537 3.12e-08 ***
+#   ns(X.Childrens.Game., df = 1)           1357.76     148.54   9.141  < 2e-16 ***
+#   ns(Sports, df = 1)                      -519.10     234.53  -2.213 0.026883 *  
+#   ns(Action...Dexterity, df = 1)          -671.35     173.45  -3.871 0.000109 ***
+#   ns(Video.Game.Theme, df = 1)             877.01     278.51   3.149 0.001641 ** 
+#   ns(Mature...Adult, df = 1)              2065.20     418.45   4.935 8.06e-07 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 2527 on 21600 degrees of freedom
-# Multiple R-squared:  0.8399,	Adjusted R-squared:  0.8397 
-# F-statistic:  3777 on 30 and 21600 DF,  p-value: < 2.2e-16
+# Residual standard error: 4106 on 21429 degrees of freedom
+# Multiple R-squared:  0.5792,	Adjusted R-squared:  0.5786 
+# F-statistic: 951.3 on 31 and 21429 DF,  p-value: < 2.2e-16
 
 
 #2.3) degree 2 for num and 1 for cat----------------------------------------------
 names="Rank~"
-for(i in colnames(mydata[,3:9])){
+for(i in colnames(mydata[,3:7])){
   names=paste(names, "+ ","ns(",i,",df=2)")
 }
 
-for(i in colnames(mydata[,10:ncol(mydata)])){
+for(i in colnames(mydata[,8:ncol(mydata)])){
   names=paste(names, "+ ","ns(",i,",df=1)")
 }
 
@@ -744,83 +848,68 @@ summary(model_ns2)
 # qqnorm(model_gam_ns2$residuals)
 # #pretty normal :')
 
+
 # Residuals:
 #   Min     1Q Median     3Q    Max 
-# -38818  -2819    333   2709  23573 
+# -40517  -3964    -85   3800  28535 
 # 
-# Coefficients: (1 not defined because of singularities)
-# Estimate Std. Error  t value Pr(>|t|)    
-# (Intercept)                            51184.93     861.19   59.435  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)1              -70087.29     754.84  -92.851  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)2              -26190.44     196.71 -133.144  < 2e-16 ***
-#   ns(Users_rated, df = 2)1               55889.80    3776.99   14.797  < 2e-16 ***
-#   ns(Users_rated, df = 2)2               25791.33    7224.39    3.570 0.000358 ***
-#   ns(Max_players, df = 2)1                -920.00    1453.66   -0.633 0.526815    
-#   ns(Max_players, df = 2)2               -1834.92    2120.16   -0.865 0.386794    
-#   ns(Playing_time, df = 2)1              -3021.56    2539.56   -1.190 0.234139    
-#   ns(Playing_time, df = 2)2               2169.87    3682.67    0.589 0.555726    
-#   ns(Min_age, df = 2)1                   -2395.32     208.26  -11.501  < 2e-16 ***
-#   ns(Min_age, df = 2)2                    1183.29     393.05    3.011 0.002611 ** 
-#   ns(Owned, df = 2)1                    -80155.44    4059.97  -19.743  < 2e-16 ***
-#   ns(Owned, df = 2)2                     16107.01    7862.95    2.048 0.040526 *  
-#   ns(Negotiation, df = 2)1               -3692.44    1388.65   -2.659 0.007843 ** 
-#   ns(Negotiation, df = 2)2                     NA         NA       NA       NA    
-#   ns(Political, df = 1)                   -639.91     211.96   -3.019 0.002539 ** 
-#   ns(Fantasy, df = 1)                     -162.46     103.12   -1.575 0.115185    
-#   ns(Abstract.Strategy, df = 1)            472.00     124.73    3.784 0.000155 ***
-#   ns(Medieval, df = 1)                    -458.59     147.63   -3.106 0.001897 ** 
-#   ns(Ancient, df = 1)                    -1086.42     175.34   -6.196 5.89e-10 ***
-#   ns(Territory.Building, df = 1)          -793.68     206.71   -3.840 0.000124 ***
-#   ns(Civilization, df = 1)                -956.94     254.53   -3.760 0.000171 ***
-#   ns(Nautical, df = 1)                    -784.67     184.09   -4.262 2.03e-05 ***
-#   ns(Exploration, df = 1)                 -245.83     167.38   -1.469 0.141934    
-#   ns(Farming, df = 1)                     -915.27     294.79   -3.105 0.001906 ** 
-#   ns(Bluffing, df = 1)                    -331.22     142.33   -2.327 0.019967 *  
-#   ns(Science.Fiction, df = 1)             -272.08     121.49   -2.240 0.025129 *  
-#   ns(Collectible.Components, df = 1)        65.08     243.48    0.267 0.789256    
-#   ns(Dice, df = 1)                          32.14     110.88    0.290 0.771898    
-#   ns(Fighting, df = 1)                     182.80     125.20    1.460 0.144273    
-#   ns(Print...Play, df = 1)                1165.90     186.15    6.263 3.85e-10 ***
-#   ns(Miniatures, df = 1)                   265.38     156.49    1.696 0.089935 .  
-#   ns(City.Building, df = 1)              -1527.32     203.38   -7.510 6.15e-14 ***
-#   ns(Wargame, df = 1)                     1502.92     101.89   14.750  < 2e-16 ***
-#   ns(Adventure, df = 1)                    705.75     151.28    4.665 3.10e-06 ***
-#   ns(Renaissance, df = 1)                -1757.59     280.62   -6.263 3.84e-10 ***
-#   ns(Modern.Warfare, df = 1)               562.99     242.98    2.317 0.020515 *  
-#   ns(Humor, df = 1)                        663.31     140.09    4.735 2.21e-06 ***
-#   ns(Electronic, df = 1)                   530.17     320.95    1.652 0.098574 .  
-#   ns(Deduction, df = 1)                   -129.19     145.87   -0.886 0.375818    
-#   ns(Word.Game, df = 1)                    502.94     214.41    2.346 0.018998 *  
-#   ns(Aviation...Flight, df = 1)          -1117.48     276.81   -4.037 5.43e-05 ***
-#   ns(Movies...TV...Radio.theme, df = 1)    300.59     146.82    2.047 0.040639 *  
-#   ns(Party.Game, df = 1)                   595.68     123.41    4.827 1.40e-06 ***
-#   ns(Memory, df = 1)                       715.58     202.43    3.535 0.000409 ***
-#   ns(Puzzle, df = 1)                      -624.71     180.49   -3.461 0.000539 ***
-#   ns(Real.time, df = 1)                   -644.43     172.97   -3.726 0.000195 ***
-#   ns(Trivia, df = 1)                       784.31     201.91    3.884 0.000103 ***
-#   ns(Industry...Manufacturing, df = 1)    -997.05     266.89   -3.736 0.000188 ***
-#   ns(Trains, df = 1)                     -1232.40     263.64   -4.675 2.96e-06 ***
-#   ns(Animals, df = 1)                     -508.59     132.79   -3.830 0.000129 ***
-#   ns(X.Childrens.Game., df = 1)            427.74     129.43    3.305 0.000952 ***
-#   ns(Transportation, df = 1)              -843.24     249.93   -3.374 0.000743 ***
-#   ns(Prehistoric, df = 1)                 -940.68     357.29   -2.633 0.008474 ** 
-#   ns(Sports, df = 1)                       381.28     205.82    1.853 0.063962 .  
-#   ns(Game.System, df = 1)                  873.89     834.76    1.047 0.295170    
-#   ns(Medical, df = 1)                     -362.64     483.12   -0.751 0.452894    
-#   ns(Napoleonic, df = 1)                   294.99     264.66    1.115 0.265023    
-#   ns(Post.Napoleonic, df = 1)              677.25     299.35    2.262 0.023684 *  
-#   ns(Book, df = 1)                         773.29     348.73    2.217 0.026604 *  
-#   ns(Music, df = 1)                        893.97     488.85    1.829 0.067452 .  
-#   ns(Arabian, df = 1)                     -657.60     442.96   -1.485 0.137671    
-#   ns(Video.Game.Theme, df = 1)             681.85     244.35    2.790 0.005268 ** 
-#   ns(Mature...Adult, df = 1)              1017.44     391.41    2.599 0.009344 ** 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)                             4319.5     2388.0   1.809 0.070496 .  
+#   ns(Users_rated, df = 2)1              -31823.5      889.7 -35.769  < 2e-16 ***
+#   ns(Users_rated, df = 2)2               42102.6     2044.8  20.591  < 2e-16 ***
+#   ns(Year, df = 2)1                      30781.0     4871.1   6.319 2.68e-10 ***
+#   ns(Year, df = 2)2                      -6777.0      502.6 -13.483  < 2e-16 ***
+#   ns(weights, df = 2)1                  -12964.1      253.7 -51.100  < 2e-16 ***
+#   ns(weights, df = 2)2                   -5155.5      335.6 -15.362  < 2e-16 ***
+#   ns(Playing_time, df = 2)1             -10359.6     3643.9  -2.843 0.004473 ** 
+#   ns(Playing_time, df = 2)2               9554.5     5106.0   1.871 0.061324 .  
+#   ns(Min_age, df = 2)1                   -2274.6      294.6  -7.721 1.20e-14 ***
+#   ns(Min_age, df = 2)2                    -670.4      550.8  -1.217 0.223587    
+#   ns(Economic, df = 1)                    1138.1      189.1   6.018 1.80e-09 ***
+#   ns(Negotiation, df = 1)                 1897.4      258.1   7.352 2.03e-13 ***
+#   ns(Card.Game, df = 1)                   -687.6      102.8  -6.690 2.28e-11 ***
+#   ns(Fantasy, df = 1)                     -462.9      140.6  -3.292 0.000995 ***
+#   ns(Medieval, df = 1)                    -188.4      204.6  -0.921 0.356998    
+#   ns(Ancient, df = 1)                     -814.3      238.6  -3.413 0.000645 ***
+#   ns(Territory.Building, df = 1)          -671.2      285.6  -2.351 0.018748 *  
+#   ns(Nautical, df = 1)                    -643.7      254.6  -2.528 0.011473 *  
+#   ns(Exploration, df = 1)                 -181.2      231.9  -0.781 0.434724    
+#   ns(Farming, df = 1)                    -1409.2      409.5  -3.441 0.000580 ***
+#   ns(Bluffing, df = 1)                    -893.1      198.4  -4.502 6.76e-06 ***
+#   ns(Collectible.Components, df = 1)      2422.1      343.2   7.057 1.76e-12 ***
+#   ns(Miniatures, df = 1)                 -1599.8      206.4  -7.751 9.49e-15 ***
+#   ns(City.Building, df = 1)              -1610.0      283.4  -5.681 1.36e-08 ***
+#   ns(Wargame, df = 1)                     1921.7      146.3  13.135  < 2e-16 ***
+#   ns(Adventure, df = 1)                    984.7      209.4   4.702 2.59e-06 ***
+#   ns(Renaissance, df = 1)                -1300.2      388.4  -3.348 0.000816 ***
+#   ns(Modern.Warfare, df = 1)              1100.1      333.1   3.303 0.000958 ***
+#   ns(Humor, df = 1)                        803.4      192.4   4.176 2.98e-05 ***
+#   ns(Electronic, df = 1)                  1806.6      446.5   4.046 5.22e-05 ***
+#   ns(Deduction, df = 1)                  -1051.4      202.2  -5.200 2.02e-07 ***
+#   ns(Word.Game, df = 1)                   -371.2      295.4  -1.257 0.208929    
+#   ns(Aviation...Flight, df = 1)          -1611.4      381.9  -4.219 2.46e-05 ***
+#   ns(Movies...TV...Radio.theme, df = 1)   2024.2      201.4  10.051  < 2e-16 ***
+#   ns(Memory, df = 1)                       978.9      281.9   3.472 0.000517 ***
+#   ns(Puzzle, df = 1)                     -1380.6      250.4  -5.512 3.58e-08 ***
+#   ns(Real.time, df = 1)                  -1739.1      241.8  -7.194 6.51e-13 ***
+#   ns(Trivia, df = 1)                      2676.4      274.0   9.766  < 2e-16 ***
+#   ns(Industry...Manufacturing, df = 1)   -1160.0      380.1  -3.052 0.002279 ** 
+#   ns(Age.of.Reason, df = 1)              -1136.2      491.0  -2.314 0.020668 *  
+#   ns(Trains, df = 1)                     -2069.2      348.6  -5.935 2.98e-09 ***
+#   ns(Animals, df = 1)                    -1264.4      184.0  -6.871 6.53e-12 ***
+#   ns(X.Childrens.Game., df = 1)           1189.6      186.9   6.364 2.00e-10 ***
+#   ns(Sports, df = 1)                      -146.4      285.1  -0.514 0.607549    
+#   ns(Action...Dexterity, df = 1)         -1369.7      210.5  -6.508 7.76e-11 ***
+#   ns(Math, df = 1)                        1182.4      510.6   2.316 0.020571 *  
+#   ns(Video.Game.Theme, df = 1)             757.1      338.2   2.239 0.025164 *  
+#   ns(Mature...Adult, df = 1)              2241.5      543.6   4.123 3.75e-05 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 3588 on 21568 degrees of freedom
-# Multiple R-squared:  0.6778,	Adjusted R-squared:  0.6769 
-# F-statistic: 731.8 on 62 and 21568 DF,  p-value: < 2.2e-16
-
+# Residual standard error: 4974 on 21412 degrees of freedom
+# Multiple R-squared:  0.3829,	Adjusted R-squared:  0.3815 
+# F-statistic: 276.8 on 48 and 21412 DF,  p-value: < 2.2e-16
 #gam::plot.Gam(model_ns2, se=TRUE)
 
 R2adj=R_extr(model_ns2)
@@ -831,11 +920,11 @@ to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
 #let's delete them:
 to_delete_ind=which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
 names="Rank~"
-for(i in colnames(mydata[,c(3:8)[!c(3:8)%in%to_delete_ind[which(to_delete_ind<=8)]]])){
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
   names=paste(names, "+ ","ns(",i,",df=2)")
 }
 
-for(i in colnames(mydata[,c(-seq(1:8),-to_delete_ind[which(to_delete_ind>8)])])){
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
   names=paste(names, "+ ","ns(",i,",df=1)")
 }
 
@@ -846,147 +935,178 @@ summary(model_ns2.1)
 # 
 # Residuals:
 #   Min     1Q Median     3Q    Max 
-# -38813  -2815    337   2714  23609 
+# -40813  -3959    -34   3819  28674 
 # 
 # Coefficients:
-#   Estimate Std. Error  t value Pr(>|t|)    
-# (Intercept)                            49108.91     419.68  117.016  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)1              -70060.05     753.70  -92.954  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)2              -26242.27     193.88 -135.355  < 2e-16 ***
-#   ns(Users_rated, df = 2)1               56286.61    3770.14   14.930  < 2e-16 ***
-#   ns(Users_rated, df = 2)2               25862.10    7221.07    3.581 0.000342 ***
-#   ns(Min_age, df = 2)1                   -2442.04     207.24  -11.784  < 2e-16 ***
-#   ns(Min_age, df = 2)2                    1122.74     391.62    2.867 0.004149 ** 
-#   ns(Owned, df = 2)1                    -80582.64    4051.58  -19.889  < 2e-16 ***
-#   ns(Owned, df = 2)2                     16058.04    7857.62    2.044 0.041003 *  
-#   ns(Negotiation, df = 1)                  488.51     184.64    2.646 0.008158 ** 
-#   ns(Political, df = 1)                   -633.00     211.68   -2.990 0.002790 ** 
-#   ns(Abstract.Strategy, df = 1)            498.39     123.53    4.035 5.49e-05 ***
-#   ns(Medieval, df = 1)                    -463.51     147.10   -3.151 0.001629 ** 
-#   ns(Ancient, df = 1)                    -1070.10     174.83   -6.121 9.47e-10 ***
-#   ns(Territory.Building, df = 1)          -801.52     206.53   -3.881 0.000104 ***
-#   ns(Civilization, df = 1)                -977.66     253.87   -3.851 0.000118 ***
-#   ns(Nautical, df = 1)                    -774.62     183.57   -4.220 2.46e-05 ***
-#   ns(Farming, df = 1)                     -902.72     294.52   -3.065 0.002179 ** 
-#   ns(Bluffing, df = 1)                    -355.37     136.88   -2.596 0.009431 ** 
-#   ns(Science.Fiction, df = 1)             -236.58     119.82   -1.974 0.048339 *  
-#   ns(Print...Play, df = 1)                1165.24     185.73    6.274 3.59e-10 ***
-#   ns(Miniatures, df = 1)                   291.80     152.16    1.918 0.055158 .  
-#   ns(City.Building, df = 1)              -1528.82     203.10   -7.528 5.37e-14 ***
-#   ns(Wargame, df = 1)                     1510.97      95.36   15.844  < 2e-16 ***
-#   ns(Adventure, df = 1)                    603.40     138.71    4.350 1.37e-05 ***
-#   ns(Renaissance, df = 1)                -1752.38     280.31   -6.252 4.14e-10 ***
-#   ns(Modern.Warfare, df = 1)               518.65     241.00    2.152 0.031401 *  
-#   ns(Humor, df = 1)                        670.08     139.66    4.798 1.61e-06 ***
-#   ns(Electronic, df = 1)                   508.47     320.69    1.586 0.112859    
-#   ns(Word.Game, df = 1)                    521.48     214.10    2.436 0.014872 *  
-#   ns(Aviation...Flight, df = 1)          -1109.74     276.06   -4.020 5.84e-05 ***
-#   ns(Movies...TV...Radio.theme, df = 1)    312.62     146.34    2.136 0.032673 *  
-#   ns(Party.Game, df = 1)                   598.88     120.45    4.972 6.67e-07 ***
-#   ns(Memory, df = 1)                       683.84     201.16    3.399 0.000677 ***
-#   ns(Puzzle, df = 1)                      -642.80     179.68   -3.577 0.000348 ***
-#   ns(Real.time, df = 1)                   -638.72     172.80   -3.696 0.000219 ***
-#   ns(Trivia, df = 1)                       796.16     200.82    3.965 7.38e-05 ***
-#   ns(Industry...Manufacturing, df = 1)    -987.60     266.49   -3.706 0.000211 ***
-#   ns(Trains, df = 1)                     -1211.54     262.86   -4.609 4.07e-06 ***
-#   ns(Animals, df = 1)                     -495.47     132.38   -3.743 0.000182 ***
-#   ns(X.Childrens.Game., df = 1)            428.26     129.24    3.314 0.000923 ***
-#   ns(Transportation, df = 1)              -853.87     249.67   -3.420 0.000627 ***
-#   ns(Prehistoric, df = 1)                 -939.60     357.00   -2.632 0.008497 ** 
-#   ns(Sports, df = 1)                       414.40     205.27    2.019 0.043521 *  
-#   ns(Post.Napoleonic, df = 1)              678.35     299.03    2.268 0.023311 *  
-#   ns(Book, df = 1)                         774.75     348.20    2.225 0.026092 *  
-#   ns(Music, df = 1)                        911.35     488.73    1.865 0.062233 .  
-#   ns(Video.Game.Theme, df = 1)             702.67     243.27    2.888 0.003875 ** 
-#   ns(Mature...Adult, df = 1)              1050.24     390.89    2.687 0.007220 ** 
+#   Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)                             3350.80    2389.68   1.402  0.160871    
+#   ns(Users_rated, df = 2)1              -32054.76     890.86 -35.982  < 2e-16 ***
+#   ns(Users_rated, df = 2)2               42562.44    2047.75  20.785  < 2e-16 ***
+#   ns(Year, df = 2)1                      31306.31    4878.42   6.417 1.42e-10 ***
+#   ns(Year, df = 2)2                      -7159.08     501.52 -14.275  < 2e-16 ***
+#   ns(weights, df = 2)1                  -13371.78     242.06 -55.242  < 2e-16 ***
+#   ns(weights, df = 2)2                   -5292.90     331.71 -15.956  < 2e-16 ***
+#   ns(Playing_time, df = 2)1             -10133.79    3649.52  -2.777 0.005495 ** 
+#   ns(Playing_time, df = 2)2               9312.24    5115.15   1.821 0.068694 .  
+#   ns(Economic, df = 1)                    1123.87     189.36   5.935 2.98e-09 ***
+#   ns(Negotiation, df = 1)                 1866.54     258.46   7.222 5.31e-13 ***
+#   ns(Card.Game, df = 1)                   -706.82     102.78  -6.877 6.28e-12 ***
+#   ns(Fantasy, df = 1)                     -463.91     140.53  -3.301 0.000965 ***
+#   ns(Medieval, df = 1)                    -190.19     204.93  -0.928 0.353380    
+#   ns(Territory.Building, df = 1)          -741.69     285.83  -2.595 0.009471 ** 
+#   ns(Nautical, df = 1)                    -650.79     254.97  -2.552 0.010704 *  
+#   ns(Exploration, df = 1)                 -202.04     232.33  -0.870 0.384503    
+#   ns(Farming, df = 1)                    -1411.67     410.19  -3.442 0.000580 ***
+#   ns(Bluffing, df = 1)                    -914.43     198.68  -4.603 4.20e-06 ***
+#   ns(Collectible.Components, df = 1)      2542.58     343.59   7.400 1.41e-13 ***
+#   ns(Miniatures, df = 1)                 -1613.28     206.58  -7.809 6.01e-15 ***
+#   ns(City.Building, df = 1)              -1672.29     283.46  -5.900 3.70e-09 ***
+#   ns(Wargame, df = 1)                     1987.91     145.90  13.625  < 2e-16 ***
+#   ns(Adventure, df = 1)                    974.57     209.76   4.646 3.40e-06 ***
+#   ns(Renaissance, df = 1)                -1313.87     389.05  -3.377 0.000734 ***
+#   ns(Modern.Warfare, df = 1)              1144.80     333.31   3.435 0.000594 ***
+#   ns(Humor, df = 1)                        724.78     191.73   3.780 0.000157 ***
+#   ns(Electronic, df = 1)                  1846.38     447.24   4.128 3.67e-05 ***
+#   ns(Deduction, df = 1)                  -1103.32     202.30  -5.454 4.99e-08 ***
+#   ns(Aviation...Flight, df = 1)          -1583.34     382.37  -4.141 3.47e-05 ***
+#   ns(Movies...TV...Radio.theme, df = 1)   2013.56     201.39   9.998  < 2e-16 ***
+#   ns(Memory, df = 1)                      1043.51     282.31   3.696 0.000219 ***
+#   ns(Puzzle, df = 1)                     -1335.68     250.76  -5.327 1.01e-07 ***
+#   ns(Real.time, df = 1)                  -1777.43     241.63  -7.356 1.97e-13 ***
+#   ns(Trivia, df = 1)                      2530.79     272.79   9.277  < 2e-16 ***
+#   ns(Industry...Manufacturing, df = 1)   -1171.31     380.55  -3.078 0.002087 ** 
+#   ns(Age.of.Reason, df = 1)              -1016.59     491.51  -2.068 0.038624 *  
+#   ns(Trains, df = 1)                     -1957.09     348.94  -5.609 2.06e-08 ***
+#   ns(Animals, df = 1)                    -1194.19     183.73  -6.500 8.23e-11 ***
+#   ns(X.Childrens.Game., df = 1)           1468.40     184.15   7.974 1.61e-15 ***
+#   ns(Sports, df = 1)                       -39.38     285.31  -0.138 0.890220    
+#   ns(Action...Dexterity, df = 1)         -1286.74     210.43  -6.115 9.84e-10 ***
+#   ns(Math, df = 1)                        1233.41     511.36   2.412 0.015873 *  
+#   ns(Video.Game.Theme, df = 1)             754.25     338.64   2.227 0.025938 *  
+#   ns(Mature...Adult, df = 1)              1863.70     507.59   3.672 0.000242 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 3588 on 21582 degrees of freedom
-# Multiple R-squared:  0.6776,	Adjusted R-squared:  0.6768 
-# F-statistic: 944.8 on 48 and 21582 DF,  p-value: < 2.2e-16
+# Residual standard error: 4983 on 21416 degrees of freedom
+# Multiple R-squared:  0.3805, Adjusted R-squared:  0.3792 	 
+# F-statistic: 298.9 on 44 and 21416 DF,  p-value: < 2.2e-16
+ypred <- predict(model_ns2.1, newdata=xnew)
+temp=sample(21461,10000)
+dev.new()
+plot(ypred[temp],mydata$Rank[temp],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
 
-#let's do perm sel one more time
+dev.new()
+plot(ypred[ypred>0][temp],mydata$Rank[ypred>0][temp],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
+#piccola parentesi___________
+out=ypred[ypred>30000]
+mydata[names(out),]
+#_______________________________
+
 R2adj=R_extr(model_ns2.1)
 R2adj.perm=perm_sel(model_ns2.1)
 thres=0.05
 to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
 #all true again
 #let's delete them:
-to_delete_ind=cbind(to_delete_ind,which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE])))
-names="Rank~"
-for(i in colnames(mydata[,c(3:8)[!c(3:8)%in%to_delete_ind[which(to_delete_ind<=8)]]])){
+to_delete_ind=c(to_delete_ind,which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE])))
+names="Rank~-1"
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
   names=paste(names, "+ ","ns(",i,",df=2)")
 }
 
-for(i in colnames(mydata[,c(-seq(1:8),-to_delete_ind[which(to_delete_ind>8)])])){
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
   names=paste(names, "+ ","ns(",i,",df=1)")
 }
 
 formula=as.formula(names)
 model_ns2.2<-lm(formula, data = mydata)
+model_ns2.2$type="lm"
 summary(model_ns2.2)
+# 
 
 # Residuals:
 #   Min     1Q Median     3Q    Max 
-# -38810  -2815    337   2717  23597 
+# -40799  -3974    -38   3817  28683 
 # 
 # Coefficients:
-#   Estimate Std. Error  t value Pr(>|t|)    
-# (Intercept)                            49121.94     419.61  117.065  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)1              -70078.06     753.65  -92.985  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)2              -26252.76     193.77 -135.483  < 2e-16 ***
-#   ns(Users_rated, df = 2)1               56311.02    3770.24   14.936  < 2e-16 ***
-#   ns(Users_rated, df = 2)2               25891.44    7221.30    3.585 0.000337 ***
-#   ns(Min_age, df = 2)1                   -2445.54     207.24  -11.801  < 2e-16 ***
-#   ns(Min_age, df = 2)2                    1125.42     391.63    2.874 0.004061 ** 
-#   ns(Owned, df = 2)1                    -80605.63    4051.69  -19.894  < 2e-16 ***
-#   ns(Owned, df = 2)2                     16018.39    7857.85    2.039 0.041510 *  
-#   ns(Negotiation, df = 1)                  494.78     184.61    2.680 0.007364 ** 
-#   ns(Political, df = 1)                   -635.27     211.69   -3.001 0.002694 ** 
-#   ns(Abstract.Strategy, df = 1)            498.39     123.53    4.035 5.49e-05 ***
-#   ns(Medieval, df = 1)                    -465.66     147.10   -3.166 0.001549 ** 
-#   ns(Ancient, df = 1)                    -1071.74     174.83   -6.130 8.94e-10 ***
-#   ns(Territory.Building, df = 1)          -802.86     206.54   -3.887 0.000102 ***
-#   ns(Civilization, df = 1)                -978.31     253.88   -3.853 0.000117 ***
-#   ns(Nautical, df = 1)                    -772.76     183.57   -4.210 2.57e-05 ***
-#   ns(Farming, df = 1)                     -903.43     294.53   -3.067 0.002162 ** 
-#   ns(Bluffing, df = 1)                    -359.35     136.86   -2.626 0.008653 ** 
-#   ns(Science.Fiction, df = 1)             -237.97     119.82   -1.986 0.047039 *  
-#   ns(Print...Play, df = 1)                1163.76     185.74    6.266 3.78e-10 ***
-#   ns(Miniatures, df = 1)                   292.26     152.17    1.921 0.054787 .  
-#   ns(City.Building, df = 1)              -1527.83     203.10   -7.522 5.59e-14 ***
-#   ns(Wargame, df = 1)                     1510.09      95.37   15.835  < 2e-16 ***
-#   ns(Adventure, df = 1)                    607.19     138.69    4.378 1.20e-05 ***
-#   ns(Renaissance, df = 1)                -1753.93     280.32   -6.257 4.00e-10 ***
-#   ns(Modern.Warfare, df = 1)               521.41     241.00    2.164 0.030513 *  
-#   ns(Humor, df = 1)                        667.26     139.65    4.778 1.78e-06 ***
-#   ns(Word.Game, df = 1)                    521.37     214.11    2.435 0.014896 *  
-#   ns(Aviation...Flight, df = 1)          -1106.66     276.06   -4.009 6.12e-05 ***
-#   ns(Movies...TV...Radio.theme, df = 1)    321.50     146.24    2.198 0.027931 *  
-#   ns(Party.Game, df = 1)                   603.76     120.41    5.014 5.37e-07 ***
-#   ns(Memory, df = 1)                       690.05     201.13    3.431 0.000603 ***
-#   ns(Puzzle, df = 1)                      -642.18     179.69   -3.574 0.000353 ***
-#   ns(Real.time, df = 1)                   -626.22     172.63   -3.628 0.000287 ***
-#   ns(Trivia, df = 1)                       810.76     200.62    4.041 5.33e-05 ***
-#   ns(Industry...Manufacturing, df = 1)    -989.08     266.49   -3.711 0.000207 ***
-#   ns(Trains, df = 1)                     -1212.55     262.87   -4.613 4.00e-06 ***
-#   ns(Animals, df = 1)                     -496.35     132.38   -3.749 0.000178 ***
-#   ns(X.Childrens.Game., df = 1)            439.17     129.07    3.403 0.000669 ***
-#   ns(Transportation, df = 1)              -856.35     249.68   -3.430 0.000605 ***
-#   ns(Prehistoric, df = 1)                 -944.36     357.00   -2.645 0.008169 ** 
-#   ns(Sports, df = 1)                       414.78     205.28    2.021 0.043336 *  
-#   ns(Post.Napoleonic, df = 1)              677.78     299.05    2.266 0.023431 *  
-#   ns(Book, df = 1)                         773.36     348.21    2.221 0.026365 *  
-#   ns(Music, df = 1)                        937.27     488.47    1.919 0.055024 .  
-#   ns(Video.Game.Theme, df = 1)             704.47     243.27    2.896 0.003785 ** 
-#   ns(Mature...Adult, df = 1)              1043.45     390.88    2.669 0.007603 ** 
+#   Estimate Std. Error t value Pr(>|t|)    
+#   ns(Users_rated, df = 2)1              -32069.4      890.5 -36.014  < 2e-16 ***
+#   ns(Users_rated, df = 2)2               42569.0     2047.3  20.793  < 2e-16 ***
+#   ns(Year, df = 2)1                      38108.2      509.5  74.796  < 2e-16 ***
+#   ns(Year, df = 2)2                      -7286.7      494.3 -14.740  < 2e-16 ***
+#   ns(weights, df = 2)1                  -13390.7      241.0 -55.569  < 2e-16 ***
+#   ns(weights, df = 2)2                   -5295.5      331.6 -15.969  < 2e-16 ***
+#   ns(Playing_time, df = 2)1             -10105.2     3648.9  -2.769 0.005621 ** 
+#   ns(Playing_time, df = 2)2               9299.6     5115.0   1.818 0.069064 .  
+#   ns(Economic, df = 1)                    1124.9      189.2   5.944 2.82e-09 ***
+#   ns(Negotiation, df = 1)                 1858.7      258.3   7.195 6.44e-13 ***
+#   ns(Card.Game, df = 1)                   -699.5      102.6  -6.817 9.54e-12 ***
+#   ns(Fantasy, df = 1)                     -474.8      140.0  -3.393 0.000694 ***
+#   ns(Territory.Building, df = 1)          -760.3      285.2  -2.665 0.007694 ** 
+#   ns(Nautical, df = 1)                    -658.6      254.5  -2.587 0.009678 ** 
+#   ns(Farming, df = 1)                    -1405.0      410.1  -3.426 0.000613 ***
+#   ns(Bluffing, df = 1)                    -918.0      198.6  -4.622 3.82e-06 ***
+#   ns(Collectible.Components, df = 1)      2547.4      343.4   7.419 1.23e-13 ***
+#   ns(Miniatures, df = 1)                 -1613.7      206.4  -7.818 5.63e-15 ***
+#   ns(City.Building, df = 1)              -1681.8      282.9  -5.945 2.81e-09 ***
+#   ns(Wargame, df = 1)                     1993.4      144.7  13.780  < 2e-16 ***
+#   ns(Adventure, df = 1)                    916.7      198.1   4.628 3.72e-06 ***
+#   ns(Renaissance, df = 1)                -1335.9      388.4  -3.439 0.000585 ***
+#   ns(Modern.Warfare, df = 1)              1153.6      333.2   3.462 0.000536 ***
+#   ns(Humor, df = 1)                        729.5      191.7   3.806 0.000142 ***
+#   ns(Electronic, df = 1)                  1840.1      447.1   4.115 3.88e-05 ***
+#   ns(Deduction, df = 1)                  -1095.0      202.1  -5.418 6.10e-08 ***
+#   ns(Aviation...Flight, df = 1)          -1576.0      382.2  -4.123 3.75e-05 ***
+#   ns(Movies...TV...Radio.theme, df = 1)   2023.9      201.1  10.062  < 2e-16 ***
+#   ns(Memory, df = 1)                      1039.3      282.3   3.682 0.000232 ***
+#   ns(Puzzle, df = 1)                     -1331.4      250.6  -5.312 1.09e-07 ***
+#   ns(Real.time, df = 1)                  -1774.1      241.6  -7.345 2.14e-13 ***
+#   ns(Trivia, df = 1)                      2537.9      272.6   9.308  < 2e-16 ***
+#   ns(Industry...Manufacturing, df = 1)   -1160.6      380.5  -3.050 0.002288 ** 
+#   ns(Age.of.Reason, df = 1)              -1003.6      491.4  -2.042 0.041134 *  
+#   ns(Trains, df = 1)                     -1937.3      348.5  -5.559 2.75e-08 ***
+#   ns(Animals, df = 1)                    -1187.1      183.6  -6.465 1.04e-10 ***
+#   ns(X.Childrens.Game., df = 1)           1471.5      184.0   7.997 1.34e-15 ***
+#   ns(Action...Dexterity, df = 1)         -1279.0      210.2  -6.084 1.19e-09 ***
+#   ns(Math, df = 1)                        1236.6      511.3   2.418 0.015595 *  
+#   ns(Video.Game.Theme, df = 1)             761.4      338.6   2.249 0.024531 *  
+#   ns(Mature...Adult, df = 1)              1867.3      507.5   3.679 0.000234 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 3588 on 21583 degrees of freedom
-# Multiple R-squared:  0.6775,	Adjusted R-squared:  0.6768 
-# F-statistic: 964.8 on 47 and 21583 DF,  p-value: < 2.2e-16
+# Residual standard error: 4983 on 21420 degrees of freedom
+# Multiple R-squared:  0.8431,	Adjusted R-squared:  0.8428 
+# F-statistic:  2807 on 41 and 21420 DF,  p-value: < 2.2e-16
+
+
+
+
+
+
+# gam::plot.Gam(model_ns2.2, se=TRUE)
+
+
+#2.3.1)model assessment---------------------------------------------------------------------
+vif(model_ns2.2)
+# ns(Year, df = 2)                      8.107246  2        1.687401
+# ns(weights, df = 2)                   8.803173  2        1.722502 
+cor(mydata)
+#year,weights =0.041448803
+
+
+#prediction
+xnew=mydata[,3:45]
+ypred <- predict(model_ns2.2, newdata=xnew)
+temp=sample(21461,10000)
+dev.new()
+plot(ypred[temp],mydata$Rank[temp],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
+
+dev.new()
+plot(ypred[ypred>0],mydata$Rank[ypred>0],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
 
 
 #3)semiparametric models--------------------------------------------------------
@@ -994,11 +1114,11 @@ summary(model_ns2.2)
 #(degree=2, maybe the previous nonpar models with degree 3 overfit data being R^2 adj so high)
 
 names="Rank~"
-for(i in colnames(mydata[,3:8])){
+for(i in colnames(mydata[,3:7])){
   names=paste(names, "+ ","ns(",i,",df=2)")
 }
 
-for(i in colnames(mydata[,9:ncol(mydata)])){
+for(i in colnames(mydata[,8:ncol(mydata)])){
   names=paste(names, "+ ",i)
 }
 
@@ -1011,164 +1131,65 @@ summary(model_sp1)
 
 # Residuals:
 #   Min     1Q Median     3Q    Max 
-# -38818  -2819    333   2709  23573 
-# 
-# Coefficients:
-#   Estimate Std. Error  t value Pr(>|t|)    
-# (Intercept)                49147.40     421.85  116.504  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)1  -70087.29     754.84  -92.851  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)2  -26190.44     196.71 -133.144  < 2e-16 ***
-#   ns(Users_rated, df = 2)1   55889.80    3776.99   14.797  < 2e-16 ***
-#   ns(Users_rated, df = 2)2   25791.33    7224.39    3.570 0.000358 ***
-#   ns(Max_players, df = 2)1    -920.00    1453.66   -0.633 0.526815    
-#   ns(Max_players, df = 2)2   -1834.92    2120.16   -0.865 0.386794    
-#   ns(Playing_time, df = 2)1  -3021.56    2539.56   -1.190 0.234139    
-#   ns(Playing_time, df = 2)2   2169.87    3682.67    0.589 0.555726    
-#   ns(Min_age, df = 2)1       -2395.32     208.26  -11.501  < 2e-16 ***
-#   ns(Min_age, df = 2)2        1183.29     393.05    3.011 0.002611 ** 
-#   ns(Owned, df = 2)1        -80155.44    4059.97  -19.743  < 2e-16 ***
-#   ns(Owned, df = 2)2         16107.01    7862.95    2.048 0.040526 *  
-#   Negotiation                  394.35     148.31    2.659 0.007843 ** 
-#   Political                   -513.07     169.94   -3.019 0.002539 ** 
-#   Fantasy                     -130.25      82.68   -1.575 0.115185    
-#   Abstract.Strategy            378.44     100.00    3.784 0.000155 ***
-#   Medieval                    -367.69     118.37   -3.106 0.001897 ** 
-#   Ancient                     -871.07     140.58   -6.196 5.89e-10 ***
-#   Territory.Building          -636.36     165.74   -3.840 0.000124 ***
-#   Civilization                -767.26     204.08   -3.760 0.000171 ***
-#   Nautical                    -629.14     147.60   -4.262 2.03e-05 ***
-#   Exploration                 -197.11     134.21   -1.469 0.141934    
-#   Farming                     -733.85     236.36   -3.105 0.001906 ** 
-#   Bluffing                    -265.57     114.12   -2.327 0.019967 *  
-#   Science.Fiction             -218.15      97.41   -2.240 0.025129 *  
-#   Collectible.Components        52.18     195.22    0.267 0.789256    
-#   Dice                          25.77      88.90    0.290 0.771898    
-#   Fighting                     146.57     100.38    1.460 0.144273    
-#   Print...Play                 934.80     149.26    6.263 3.85e-10 ***
-#   Miniatures                   212.78     125.47    1.696 0.089935 .  
-#   City.Building              -1224.58     163.06   -7.510 6.15e-14 ***
-#   Wargame                     1205.02      81.70   14.750  < 2e-16 ***
-#   Adventure                    565.86     121.30    4.665 3.10e-06 ***
-#   Renaissance                -1409.21     224.99   -6.263 3.84e-10 ***
-#   Modern.Warfare               451.39     194.82    2.317 0.020515 *  
-#   Humor                        531.83     112.32    4.735 2.21e-06 ***
-#   Electronic                   425.08     257.33    1.652 0.098574 .  
-#   Deduction                   -103.58     116.96   -0.886 0.375818    
-#   Word.Game                    403.25     171.91    2.346 0.018998 *  
-#   Aviation...Flight           -895.98     221.94   -4.037 5.43e-05 ***
-#   Movies...TV...Radio.theme    241.01     117.72    2.047 0.040639 *  
-#   Party.Game                   477.60      98.95    4.827 1.40e-06 ***
-#   Memory                       573.74     162.30    3.535 0.000409 ***
-#   Puzzle                      -500.88     144.71   -3.461 0.000539 ***
-#   Real.time                   -516.69     138.68   -3.726 0.000195 ***
-#   Trivia                       628.85     161.89    3.884 0.000103 ***
-#   Industry...Manufacturing    -799.42     213.99   -3.736 0.000188 ***
-#   Trains                      -988.12     211.38   -4.675 2.96e-06 ***
-#   Animals                     -407.78     106.47   -3.830 0.000129 ***
-#   X.Childrens.Game.            342.96     103.77    3.305 0.000952 ***
-#   Transportation              -676.10     200.39   -3.374 0.000743 ***
-#   Prehistoric                 -754.22     286.47   -2.633 0.008474 ** 
-#   Sports                       305.71     165.02    1.853 0.063962 .  
-#   Game.System                  700.67     669.30    1.047 0.295170    
-#   Medical                     -290.76     387.36   -0.751 0.452894    
-#   Napoleonic                   236.52     212.20    1.115 0.265023    
-#   Post.Napoleonic              543.01     240.02    2.262 0.023684 *  
-#   Book                         620.01     279.61    2.217 0.026604 *  
-#   Music                        716.77     391.95    1.829 0.067452 .  
-#   Arabian                     -527.26     355.16   -1.485 0.137671    
-#   Video.Game.Theme             546.70     195.92    2.790 0.005268 ** 
-#   Mature...Adult               815.77     313.82    2.599 0.009344 ** 
-#   ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-# 
-# Residual standard error: 3588 on 21568 degrees of freedom
-# Multiple R-squared:  0.6778,	Adjusted R-squared:  0.6769 
-# F-statistic: 731.8 on 62 and 21568 DF,  p-value: < 2.2e-16
-
-
-
-#with natural splines of deg 3:
-# Residuals:
-#   Min       1Q   Median       3Q      Max 
-# -16572.9  -1454.5     22.8   1251.0  16641.7 
+# -40517  -3964    -85   3800  28535 
 # 
 # Coefficients:
 #   Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)                23567.02     386.64  60.953  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)1  -18929.32     190.99 -99.114  < 2e-16 ***
-#   ns(Avg_ratings, df = 3)2   -4500.18     782.67  -5.750 9.05e-09 ***
-#   ns(Avg_ratings, df = 3)3   -8658.69     266.55 -32.485  < 2e-16 ***
-#   ns(Users_rated, df = 3)1    1545.25    1529.16   1.011 0.312256    
-#   ns(Users_rated, df = 3)2    4710.51    2181.92   2.159 0.030870 *  
-#   ns(Users_rated, df = 3)3   23538.70    4467.57   5.269 1.39e-07 ***
-#   ns(Max_players, df = 3)1      34.38     675.68   0.051 0.959421    
-#   ns(Max_players, df = 3)2    -687.97     718.93  -0.957 0.338604    
-#   ns(Max_players, df = 3)3    -486.34    1314.92  -0.370 0.711487    
-#   ns(Playing_time, df = 3)1  -1087.31    1283.56  -0.847 0.396950    
-#   ns(Playing_time, df = 3)2   1123.88    1195.45   0.940 0.347163    
-#   ns(Playing_time, df = 3)3   2326.13    2249.07   1.034 0.301025    
-#   ns(Min_age, df = 3)1        -435.62     115.40  -3.775 0.000161 ***
-#   ns(Min_age, df = 3)2        1095.84     304.19   3.602 0.000316 ***
-#   ns(Min_age, df = 3)3        2444.16     461.83   5.292 1.22e-07 ***
-#   ns(Owned, df = 3)1        -25089.96    1576.39 -15.916  < 2e-16 ***
-#   ns(Owned, df = 3)2        -21747.30    2379.58  -9.139  < 2e-16 ***
-#   ns(Owned, df = 3)3        -15078.70    4875.84  -3.093 0.001987 ** 
-#   Negotiation                  292.06      94.60   3.087 0.002023 ** 
-#   Political                   -176.14     108.29  -1.627 0.103835    
-#   Fantasy                       94.55      52.73   1.793 0.073009 .  
-#   Abstract.Strategy             13.40      65.00   0.206 0.836673    
-#   Medieval                    -197.17      75.37  -2.616 0.008907 ** 
-#   Ancient                     -305.01      89.53  -3.407 0.000659 ***
-#   Territory.Building          -109.82     105.55  -1.040 0.298126    
-#   Civilization                -525.61     129.87  -4.047 5.20e-05 ***
-#   Nautical                    -130.05      93.95  -1.384 0.166293    
-#   Exploration                  -58.06      85.44  -0.680 0.496793    
-#   Farming                     -272.51     150.37  -1.812 0.069969 .  
-#   Bluffing                    -175.87      72.68  -2.420 0.015546 *  
-#   Science.Fiction               58.53      62.15   0.942 0.346294    
-#   Collectible.Components       227.11     125.01   1.817 0.069272 .  
-#   Dice                         121.52      56.65   2.145 0.031955 *  
-#   Fighting                      37.72      63.97   0.590 0.555409    
-#   Print...Play                 394.80      96.52   4.090 4.32e-05 ***
-#   Miniatures                    36.18      80.10   0.452 0.651455    
-#   City.Building               -467.54     103.89  -4.500 6.82e-06 ***
-#   Wargame                      558.42      58.38   9.566  < 2e-16 ***
-#   Adventure                    210.93      77.27   2.730 0.006342 ** 
-#   Renaissance                 -615.05     143.27  -4.293 1.77e-05 ***
-#   Modern.Warfare               392.77     123.98   3.168 0.001538 ** 
-#   Humor                        283.19      71.55   3.958 7.59e-05 ***
-#   Electronic                   404.39     163.78   2.469 0.013553 *  
-#   Deduction                     75.73      74.43   1.018 0.308900    
-#   Word.Game                     67.98     109.36   0.622 0.534209    
-#   Aviation...Flight           -116.68     141.32  -0.826 0.409004    
-#   Movies...TV...Radio.theme    221.99      75.07   2.957 0.003109 ** 
-#   Party.Game                   284.21      63.09   4.505 6.67e-06 ***
-#   Memory                        27.66     103.40   0.267 0.789094    
-#   Puzzle                      -151.56      92.10  -1.646 0.099839 .  
-#   Real.time                   -288.51      88.74  -3.251 0.001152 ** 
-#   Trivia                        44.29     103.36   0.429 0.668264    
-#   Industry...Manufacturing    -346.50     136.33  -2.542 0.011043 *  
-#   Trains                      -272.90     134.73  -2.026 0.042824 *  
-#   Animals                      -72.43      67.88  -1.067 0.285956    
-#   X.Childrens.Game.             28.79      67.79   0.425 0.671072    
-#   Transportation              -368.58     127.52  -2.890 0.003852 ** 
-#   Prehistoric                 -271.19     182.29  -1.488 0.136846    
-#   Sports                        14.53     105.62   0.138 0.890602    
-#   Game.System                  434.92     425.80   1.021 0.307068    
-#   Medical                     -263.38     246.40  -1.069 0.285135    
-#   Napoleonic                   132.35     134.98   0.980 0.326860    
-#   Post.Napoleonic               68.24     152.81   0.447 0.655183    
-#   Book                         -59.01     178.26  -0.331 0.740620    
-#   Music                        569.83     249.37   2.285 0.022318 *  
-#   Arabian                     -310.93     225.91  -1.376 0.168720    
-#   Video.Game.Theme             528.90     124.65   4.243 2.21e-05 ***
-#   Mature...Adult               160.45     208.78   0.769 0.442182    
-# ---
+#   (Intercept)                 4319.46    2388.02   1.809 0.070496 .  
+#   ns(Users_rated, df = 2)1  -31823.51     889.69 -35.769  < 2e-16 ***
+#   ns(Users_rated, df = 2)2   42102.61    2044.75  20.591  < 2e-16 ***
+#   ns(Year, df = 2)1          30780.99    4871.11   6.319 2.68e-10 ***
+#   ns(Year, df = 2)2          -6777.01     502.65 -13.483  < 2e-16 ***
+#   ns(weights, df = 2)1      -12964.14     253.70 -51.100  < 2e-16 ***
+#   ns(weights, df = 2)2       -5155.49     335.60 -15.362  < 2e-16 ***
+#   ns(Playing_time, df = 2)1 -10359.58    3643.90  -2.843 0.004473 ** 
+#   ns(Playing_time, df = 2)2   9554.52    5105.96   1.871 0.061324 .  
+#   ns(Min_age, df = 2)1       -2274.64     294.60  -7.721 1.20e-14 ***
+#   ns(Min_age, df = 2)2        -670.36     550.79  -1.217 0.223587    
+#   Economic                     912.48     151.63   6.018 1.80e-09 ***
+#   Negotiation                 1521.34     206.93   7.352 2.03e-13 ***
+#   Card.Game                   -551.32      82.41  -6.690 2.28e-11 ***
+#   Fantasy                     -371.17     112.73  -3.292 0.000995 ***
+#   Medieval                    -151.09     164.03  -0.921 0.356998    
+#   Ancient                     -652.91     191.32  -3.413 0.000645 ***
+#   Territory.Building          -538.20     228.95  -2.351 0.018748 *  
+#   Nautical                    -516.12     204.15  -2.528 0.011473 *  
+#   Exploration                 -145.27     185.97  -0.781 0.434724    
+#   Farming                    -1129.85     328.31  -3.441 0.000580 ***
+#   Bluffing                    -716.11     159.05  -4.502 6.76e-06 ***
+#   Collectible.Components      1942.01     275.20   7.057 1.76e-12 ***
+#   Miniatures                 -1282.71     165.48  -7.751 9.49e-15 ***
+#   City.Building              -1290.89     227.23  -5.681 1.36e-08 ***
+#   Wargame                     1540.77     117.30  13.135  < 2e-16 ***
+#   Adventure                    789.53     167.92   4.702 2.59e-06 ***
+#   Renaissance                -1042.51     311.40  -3.348 0.000816 ***
+#   Modern.Warfare               882.01     267.04   3.303 0.000958 ***
+#   Humor                        644.15     154.25   4.176 2.98e-05 ***
+#   Electronic                  1448.51     357.97   4.046 5.22e-05 ***
+#   Deduction                   -842.98     162.13  -5.200 2.02e-07 ***
+#   Word.Game                   -297.64     236.87  -1.257 0.208929    
+#   Aviation...Flight          -1292.02     306.21  -4.219 2.46e-05 ***
+#   Movies...TV...Radio.theme   1622.99     161.48  10.051  < 2e-16 ***
+#   Memory                       784.85     226.03   3.472 0.000517 ***
+#   Puzzle                     -1106.92     200.80  -5.512 3.58e-08 ***
+#   Real.time                  -1394.40     193.83  -7.194 6.51e-13 ***
+#   Trivia                      2145.91     219.72   9.766  < 2e-16 ***
+#   Industry...Manufacturing    -930.05     304.77  -3.052 0.002279 ** 
+#   Age.of.Reason               -911.01     393.66  -2.314 0.020668 *  
+#   Trains                     -1659.07     279.53  -5.935 2.98e-09 ***
+#   Animals                    -1013.80     147.54  -6.871 6.53e-12 ***
+#   X.Childrens.Game.            953.79     149.87   6.364 2.00e-10 ***
+#   Sports                      -117.41     228.61  -0.514 0.607549    
+#   Action...Dexterity         -1098.23     168.74  -6.508 7.76e-11 ***
+#   Math                         948.06     409.36   2.316 0.020571 *  
+#   Video.Game.Theme             607.06     271.13   2.239 0.025164 *  
+#   Mature...Adult              1797.20     435.85   4.123 3.75e-05 ***
+#   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 2282 on 21562 degrees of freedom
-# Multiple R-squared:  0.8697,	Adjusted R-squared:  0.8693 
-# F-statistic:  2117 on 68 and 21562 DF,  p-value: < 2.2e-16
+# Residual standard error: 4974 on 21412 degrees of freedom
+# Multiple R-squared:  0.3829,	Adjusted R-squared:  0.3815 
+# F-statistic: 276.8 on 48 and 21412 DF,  p-value: < 2.2e-16
 
 
 R2adj=R_extr(model_sp1)
@@ -1179,11 +1200,11 @@ to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
 #let's delete them:
 to_delete_ind=which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
 names="Rank~"
-for(i in colnames(mydata[,c(3:8)[!c(3:8)%in%to_delete_ind[which(to_delete_ind<=8)]]])){
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
   names=paste(names, "+ ","ns(",i,",df=2)")
 }
 
-for(i in colnames(mydata[,c(-seq(1:8),-to_delete_ind[which(to_delete_ind>8)])])){
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
   names=paste(names, "+ ",i)
 }
 
@@ -1191,78 +1212,166 @@ formula=as.formula(names)
 model_sp1.1<-lm(formula, data = mydata)
 model_sp1.1$type="lm"
 summary(model_sp1.1)
+
 # Residuals:
 #   Min     1Q Median     3Q    Max 
-# -38813  -2815    337   2714  23609 
+# -40848  -3962    -35   3817  28614 
 # 
 # Coefficients:
-#   Estimate Std. Error  t value Pr(>|t|)    
-# (Intercept)                49108.91     419.68  117.016  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)1  -70060.05     753.70  -92.954  < 2e-16 ***
-#   ns(Avg_ratings, df = 2)2  -26242.27     193.88 -135.355  < 2e-16 ***
-#   ns(Users_rated, df = 2)1   56286.61    3770.14   14.930  < 2e-16 ***
-#   ns(Users_rated, df = 2)2   25862.10    7221.07    3.581 0.000342 ***
-#   ns(Min_age, df = 2)1       -2442.04     207.24  -11.784  < 2e-16 ***
-#   ns(Min_age, df = 2)2        1122.74     391.62    2.867 0.004149 ** 
-#   ns(Owned, df = 2)1        -80582.64    4051.58  -19.889  < 2e-16 ***
-#   ns(Owned, df = 2)2         16058.04    7857.62    2.044 0.041003 *  
-#   Negotiation                  391.68     148.04    2.646 0.008158 ** 
-#   Political                   -507.53     169.73   -2.990 0.002790 ** 
-#   Abstract.Strategy            399.60      99.04    4.035 5.49e-05 ***
-#   Medieval                    -371.64     117.94   -3.151 0.001629 ** 
-#   Ancient                     -857.99     140.18   -6.121 9.47e-10 ***
-#   Territory.Building          -642.65     165.59   -3.881 0.000104 ***
-#   Civilization                -783.87     203.55   -3.851 0.000118 ***
-#   Nautical                    -621.08     147.18   -4.220 2.46e-05 ***
-#   Farming                     -723.78     236.14   -3.065 0.002179 ** 
-#   Bluffing                    -284.93     109.75   -2.596 0.009431 ** 
-#   Science.Fiction             -189.69      96.07   -1.974 0.048339 *  
-#   Print...Play                 934.27     148.92    6.274 3.59e-10 ***
-#   Miniatures                   233.96     122.00    1.918 0.055158 .  
-# City.Building              -1225.78     162.84   -7.528 5.37e-14 ***
-#   Wargame                     1211.47      76.46   15.844  < 2e-16 ***
-#   Adventure                    483.80     111.21    4.350 1.37e-05 ***
-#   Renaissance                -1405.03     224.75   -6.252 4.14e-10 ***
-#   Modern.Warfare               415.85     193.23    2.152 0.031401 *  
-#   Humor                        537.26     111.98    4.798 1.61e-06 ***
-#   Electronic                   407.68     257.12    1.586 0.112859    
-# Word.Game                    418.11     171.66    2.436 0.014872 *  
-#   Aviation...Flight           -889.77     221.34   -4.020 5.84e-05 ***
-#   Movies...TV...Radio.theme    250.66     117.34    2.136 0.032673 *  
-#   Party.Game                   480.18      96.57    4.972 6.67e-07 ***
-#   Memory                       548.29     161.29    3.399 0.000677 ***
-#   Puzzle                      -515.38     144.07   -3.577 0.000348 ***
-#   Real.time                   -512.11     138.55   -3.696 0.000219 ***
-#   Trivia                       638.35     161.02    3.965 7.38e-05 ***
-#   Industry...Manufacturing    -791.84     213.67   -3.706 0.000211 ***
-#   Trains                      -971.39     210.76   -4.609 4.07e-06 ***
-#   Animals                     -397.26     106.14   -3.743 0.000182 ***
-#   X.Childrens.Game.            343.37     103.63    3.314 0.000923 ***
-#   Transportation              -684.62     200.18   -3.420 0.000627 ***
-#   Prehistoric                 -753.35     286.24   -2.632 0.008497 ** 
-#   Sports                       332.26     164.58    2.019 0.043521 *  
-#   Post.Napoleonic              543.89     239.76    2.268 0.023311 *  
-#   Book                         621.18     279.18    2.225 0.026092 *  
-#   Music                        730.70     391.85    1.865 0.062233 .  
-#   Video.Game.Theme             563.39     195.05    2.888 0.003875 ** 
-#   Mature...Adult               842.07     313.41    2.687 0.007220 ** 
+#   Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)                 3505.34    2389.13   1.467 0.142335    
+#   ns(Users_rated, df = 2)1  -32039.34     890.33 -35.986  < 2e-16 ***
+#   ns(Users_rated, df = 2)2   42573.62    2046.81  20.800  < 2e-16 ***
+#   ns(Year, df = 2)1          30993.81    4876.85   6.355 2.12e-10 ***
+#   ns(Year, df = 2)2          -7145.58     501.33 -14.253  < 2e-16 ***
+#   ns(weights, df = 2)1      -13342.76     241.55 -55.239  < 2e-16 ***
+#   ns(weights, df = 2)2       -5297.02     331.51 -15.978  < 2e-16 ***
+#   ns(Playing_time, df = 2)1 -10266.76    3648.15  -2.814 0.004894 ** 
+#   ns(Playing_time, df = 2)2   9323.47    5113.60   1.823 0.068277 .  
+#   Economic                     900.85     151.69   5.939 2.92e-09 ***
+#   Negotiation                 1498.47     207.08   7.236 4.77e-13 ***
+#   Card.Game                   -568.00      82.27  -6.904 5.20e-12 ***
+#   Fantasy                     -401.77     112.34  -3.576 0.000349 ***
+#   Ancient                     -663.94     191.54  -3.466 0.000529 ***
+#   Territory.Building          -581.37     228.81  -2.541 0.011066 *  
+#   Nautical                    -527.13     204.04  -2.583 0.009787 ** 
+#   Farming                    -1128.47     328.70  -3.433 0.000598 ***
+#   Bluffing                    -735.65     159.20  -4.621 3.84e-06 ***
+#   Collectible.Components      2028.54     275.29   7.369 1.79e-13 ***
+#   Miniatures                 -1303.69     165.48  -7.878 3.48e-15 ***
+#   City.Building              -1309.87     227.06  -5.769 8.10e-09 ***
+#   Wargame                     1618.75     116.09  13.944  < 2e-16 ***
+#   Adventure                    734.86     158.77   4.628 3.71e-06 ***
+#   Renaissance                -1076.94     311.36  -3.459 0.000543 ***
+#   Modern.Warfare               883.87     267.33   3.306 0.000947 ***
+#   Humor                        576.02     153.64   3.749 0.000178 ***
+#   Electronic                  1470.11     358.42   4.102 4.12e-05 ***
+#   Deduction                   -892.51     162.05  -5.508 3.68e-08 ***
+#   Aviation...Flight          -1297.43     306.54  -4.233 2.32e-05 ***
+#   Movies...TV...Radio.theme   1607.42     161.30   9.965  < 2e-16 ***
+#   Memory                       836.62     226.27   3.697 0.000218 ***
+#   Puzzle                     -1078.57     200.90  -5.369 8.02e-08 ***
+#   Real.time                  -1430.88     193.63  -7.390 1.53e-13 ***
+#   Trivia                      2024.83     218.56   9.265  < 2e-16 ***
+#   Industry...Manufacturing    -962.61     305.09  -3.155 0.001606 ** 
+#   Age.of.Reason               -853.89     394.12  -2.167 0.030278 *  
+#   Trains                     -1584.88     279.50  -5.670 1.44e-08 ***
+#   Animals                     -965.57     147.24  -6.558 5.58e-11 ***
+#   X.Childrens.Game.           1179.68     147.49   7.998 1.33e-15 ***
+#   Action...Dexterity         -1036.44     168.56  -6.149 7.94e-10 ***
+#   Math                         984.59     409.86   2.402 0.016303 *  
+#   Video.Game.Theme             591.34     271.42   2.179 0.029368 *  
+#   Mature...Adult              1496.15     406.81   3.678 0.000236 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# Residual standard error: 3588 on 21582 degrees of freedom
-# Multiple R-squared:  0.6776,	Adjusted R-squared:  0.6768 
-# F-statistic: 944.8 on 48 and 21582 DF,  p-value: < 2.2e-16
+# Residual standard error: 4982 on 21418 degrees of freedom
+# Multiple R-squared:  0.3808,	Adjusted R-squared:  0.3796 
+# F-statistic: 313.6 on 42 and 21418 DF,  p-value: < 2.2e-16
+
+#let's remove the intercept
+names="Rank~-1"
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
+  names=paste(names, "+ ","ns(",i,",df=2)")
+}
+
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
+  names=paste(names, "+ ",i)
+}
+
+formula=as.formula(names)
+model_sp1.2<-lm(formula, data = mydata)
+model_sp1.2$type="lm"
+summary(model_sp1.2)
+# 
+# Residuals:
+#   Min     1Q Median     3Q    Max 
+# -40829  -3968    -34   3816  28583 
+# 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+#   ns(Users_rated, df = 2)1  -32028.75     890.32 -35.974  < 2e-16 ***
+#   ns(Users_rated, df = 2)2   42544.10    2046.76  20.786  < 2e-16 ***
+#   ns(Year, df = 2)1          38110.02     509.37  74.819  < 2e-16 ***
+#   ns(Year, df = 2)2          -7268.92     494.24 -14.707  < 2e-16 ***
+#   ns(weights, df = 2)1      -13333.87     241.48 -55.218  < 2e-16 ***
+#   ns(weights, df = 2)2       -5295.01     331.52 -15.972  < 2e-16 ***
+#   ns(Playing_time, df = 2)1 -10257.96    3648.24  -2.812 0.004932 ** 
+#   ns(Playing_time, df = 2)2   9307.32    5113.73   1.820 0.068763 .  
+#   Economic                     899.25     151.69   5.928 3.11e-09 ***
+#   Negotiation                 1497.90     207.08   7.233 4.87e-13 ***
+#   Card.Game                   -565.65      82.26  -6.876 6.31e-12 ***
+#   Fantasy                     -400.03     112.33  -3.561 0.000370 ***
+#   Ancient                     -658.69     191.51  -3.439 0.000584 ***
+#   Territory.Building          -579.66     228.81  -2.533 0.011305 *  
+#   Nautical                    -527.96     204.04  -2.588 0.009674 ** 
+#   Farming                    -1127.11     328.71  -3.429 0.000607 ***
+#   Bluffing                    -736.04     159.21  -4.623 3.80e-06 ***
+#   Collectible.Components      2024.96     275.29   7.356 1.97e-13 ***
+#   Miniatures                 -1300.62     165.47  -7.860 4.02e-15 ***
+#   City.Building              -1308.63     227.07  -5.763 8.37e-09 ***
+#   Wargame                     1613.79     116.04  13.907  < 2e-16 ***
+#   Adventure                    734.91     158.77   4.629 3.70e-06 ***
+#   Renaissance                -1075.89     311.36  -3.455 0.000551 ***
+#   Modern.Warfare               883.17     267.34   3.304 0.000956 ***
+#   Humor                        577.78     153.64   3.761 0.000170 ***
+#   Electronic                  1467.82     358.42   4.095 4.23e-05 ***
+#   Deduction                   -890.26     162.05  -5.494 3.98e-08 ***
+#   Aviation...Flight          -1297.25     306.55  -4.232 2.33e-05 ***
+#   Movies...TV...Radio.theme   1606.79     161.30   9.961  < 2e-16 ***
+#   Memory                       834.57     226.27   3.688 0.000226 ***
+#   Puzzle                     -1076.31     200.90  -5.357 8.53e-08 ***
+#   Real.time                  -1429.36     193.64  -7.382 1.62e-13 ***
+#   Trivia                      2025.03     218.56   9.265  < 2e-16 ***
+#   Industry...Manufacturing    -960.32     305.09  -3.148 0.001648 ** 
+#   Age.of.Reason               -852.11     394.13  -2.162 0.030628 *  
+#   Trains                     -1584.18     279.51  -5.668 1.47e-08 ***
+#   Animals                     -964.20     147.24  -6.549 5.94e-11 ***
+#   X.Childrens.Game.           1180.81     147.50   8.006 1.25e-15 ***
+#   Action...Dexterity         -1030.35     168.51  -6.114 9.86e-10 ***
+#   Math                         982.65     409.87   2.397 0.016517 *  
+#   Video.Game.Theme             593.52     271.43   2.187 0.028777 *  
+#   Mature...Adult              1499.35     406.82   3.686 0.000229 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 4982 on 21419 degrees of freedom
+# Multiple R-squared:  0.8432,	Adjusted R-squared:  0.8429 
+# F-statistic:  2742 on 42 and 21419 DF,  p-value: < 2.2e-16
+#prediction
+
+ypred <- predict(model_sp1.2, newdata=xnew)
+temp=sample(21461,10000)
+dev.new()
+plot(ypred[temp],mydata$Rank[temp],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
+
+dev.new()
+plot(ypred[ypred>0],mydata$Rank[ypred>0],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
 
 
+
+#3.1.1)model assessment-------------------------
+vif(model_sp1.2)
+
+# ns(Year, df = 2)          8.114652  2        1.687786
+# ns(weights, df = 2)       8.850632  2        1.724819
+#borderline but ok vif
+
+scatterplot(mydata$weights[mydata$Year>1980],mydata$Year[mydata$Year>1980])
+#boh non noto correlazione
+cor(mydata)
+#same as before
 
 #3.2) re for numeric-------------------
 
 names="Rank~"
-for(i in colnames(mydata[,3:8])){
+for(i in colnames(mydata[,3:7])){
   names=paste(names, "+ ","s(",i,",bs='re' )")
 }
 
-for(i in colnames(mydata[,9:ncol(mydata)])){
+for(i in colnames(mydata[,8:ncol(mydata)])){
   names=paste(names, "+ ",i)
 }
 
@@ -1272,77 +1381,62 @@ formula=as.formula(names)
 model_sp2<-gam(formula,data = mydata)
 model_sp2$type="gam"
 summary(model_sp2)
-
-# 
 # Parametric coefficients:
-#                         Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)               42522.643    214.601 198.148  < 2e-16 ***
-#   Negotiation                 504.642    160.441   3.145 0.001661 ** 
-#   Political                  -485.776    183.891  -2.642 0.008256 ** 
-#   Fantasy                    -161.477     89.361  -1.807 0.070773 .  
-#   Abstract.Strategy           251.393    107.904   2.330 0.019827 *  
-#   Medieval                   -532.745    128.143  -4.157 3.23e-05 ***
-#   Ancient                    -935.362    152.195  -6.146 8.09e-10 ***
-#   Territory.Building         -691.023    179.496  -3.850 0.000119 ***
-#   Civilization               -647.477    220.779  -2.933 0.003364 ** 
-#   Nautical                   -921.770    159.749  -5.770 8.03e-09 ***
-#   Exploration                -333.168    145.278  -2.293 0.021840 *  
-#   Farming                   -1058.704    255.880  -4.138 3.52e-05 ***
-#   Bluffing                   -550.817    123.409  -4.463 8.11e-06 ***
-#   Science.Fiction            -317.943    105.391  -3.017 0.002558 ** 
-#   Collectible.Components       78.537    211.262   0.372 0.710082    
-#   Dice                         -3.051     96.216  -0.032 0.974701    
-#   Fighting                     91.570    108.668   0.843 0.399427    
-#   Print...Play               1092.981    161.545   6.766 1.36e-11 ***
-#   Miniatures                  638.463    134.876   4.734 2.22e-06 ***
-#   City.Building             -1508.219    176.526  -8.544  < 2e-16 ***
-#   Wargame                    1643.779     85.822  19.153  < 2e-16 ***
-#   Adventure                   569.174    131.293   4.335 1.46e-05 ***
-#   Renaissance               -1405.442    243.458  -5.773 7.90e-09 ***
-#   Modern.Warfare              497.985    210.939   2.361 0.018245 *  
-#   Humor                       485.693    121.544   3.996 6.46e-05 ***
-#   Electronic                  381.815    278.685   1.370 0.170682    
-#   Deduction                  -209.232    126.641  -1.652 0.098516 .  
-#   Word.Game                   316.796    186.106   1.702 0.088727 .  
-#   Aviation...Flight          -899.808    240.152  -3.747 0.000180 ***
-#   Movies...TV...Radio.theme   355.480    127.209   2.794 0.005203 ** 
-#   Party.Game                  505.238    105.161   4.804 1.56e-06 ***
-#   Memory                      629.214    175.761   3.580 0.000344 ***
-#   Puzzle                     -524.331    156.665  -3.347 0.000819 ***
-#   Real.time                  -861.542    149.906  -5.747 9.20e-09 ***
-#   Trivia                      927.331    174.882   5.303 1.15e-07 ***
-#   Industry...Manufacturing   -824.227    231.662  -3.558 0.000375 ***
-#   Trains                     -740.309    228.753  -3.236 0.001213 ** 
-#   Animals                    -623.740    115.139  -5.417 6.12e-08 ***
-#   X.Childrens.Game.           482.299    112.202   4.298 1.73e-05 ***
-#   Transportation             -731.837    216.949  -3.373 0.000744 ***
-#   Prehistoric                -943.712    310.199  -3.042 0.002351 ** 
-#   Sports                      626.227    178.550   3.507 0.000454 ***
-#   Game.System                 843.784    724.855   1.164 0.244408    
-#   Medical                     463.601    419.188   1.106 0.268760    
-#   Napoleonic                  492.646    229.671   2.145 0.031963 *  
-#   Post.Napoleonic             450.605    259.867   1.734 0.082936 .  
-#   Book                       1227.646    302.410   4.060 4.93e-05 ***
-#   Music                       939.044    424.444   2.212 0.026949 *  
-#   Arabian                    -772.075    384.586  -2.008 0.044704 *  
-#   Video.Game.Theme            623.308    212.121   2.938 0.003302 ** 
-#   Mature...Adult             1946.937    323.603   6.016 1.81e-09 ***
+#   Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)               21767.67     363.93  59.812  < 2e-16 ***
+#   Economic                    916.13     160.17   5.720 1.08e-08 ***
+#   Negotiation                1550.72     218.66   7.092 1.36e-12 ***
+#   Card.Game                  -537.67      87.08  -6.175 6.75e-10 ***
+#   Fantasy                    -634.42     118.80  -5.340 9.37e-08 ***
+#   Medieval                   -422.38     173.15  -2.439 0.014719 *  
+#   Ancient                    -937.87     201.98  -4.643 3.45e-06 ***
+#   Territory.Building         -677.01     241.90  -2.799 0.005134 ** 
+#   Nautical                   -818.57     215.62  -3.796 0.000147 ***
+#   Exploration                -432.71     196.48  -2.202 0.027653 *  
+#   Farming                   -1469.40     346.96  -4.235 2.29e-05 ***
+#   Bluffing                   -862.92     168.06  -5.135 2.85e-07 ***
+#   Collectible.Components     1761.31     290.58   6.061 1.37e-09 ***
+#   Miniatures                -1317.35     174.51  -7.549 4.57e-14 ***
+#   City.Building             -1725.47     239.86  -7.194 6.51e-13 ***
+#   Wargame                    1923.60     122.39  15.717  < 2e-16 ***
+#   Adventure                   645.30     177.45   3.637 0.000277 ***
+#   Renaissance               -1229.67     329.12  -3.736 0.000187 ***
+#   Modern.Warfare             1073.07     282.22   3.802 0.000144 ***
+#   Humor                       751.61     162.47   4.626 3.75e-06 ***
+#   Electronic                 1524.24     378.36   4.029 5.63e-05 ***
+#   Deduction                 -1044.49     171.29  -6.098 1.09e-09 ***
+#   Word.Game                   -25.15     250.03  -0.101 0.919862    
+#   Aviation...Flight         -1372.16     323.58  -4.241 2.24e-05 ***
+#   Movies...TV...Radio.theme  1635.80     170.61   9.588  < 2e-16 ***
+#   Memory                     1081.20     238.76   4.528 5.98e-06 ***
+#   Puzzle                    -1347.49     212.04  -6.355 2.13e-10 ***
+#   Real.time                 -1427.95     204.52  -6.982 3.00e-12 ***
+#   Trivia                     2595.91     231.22  11.227  < 2e-16 ***
+#   Industry...Manufacturing   -890.12     322.00  -2.764 0.005709 ** 
+#   Age.of.Reason              -995.43     416.03  -2.393 0.016735 *  
+#   Trains                    -1209.52     295.02  -4.100 4.15e-05 ***
+#   Animals                   -1174.17     155.73  -7.540 4.89e-14 ***
+#   X.Childrens.Game.          1489.72     155.68   9.569  < 2e-16 ***
+#   Sports                      -85.73     241.56  -0.355 0.722663    
+#   Action...Dexterity         -821.94     177.16  -4.640 3.51e-06 ***
+#   Math                       1142.90     432.63   2.642 0.008254 ** 
+#   Video.Game.Theme            538.19     286.57   1.878 0.060389 .  
+#   Mature...Adult             2566.40     435.72   5.890 3.92e-09 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Approximate significance of smooth terms:
-#                       edf     Ref.df     F   p-value    
-#   s(Avg_ratings)  1.000e+00      1 3.868e+04  <2e-16 ***
-#   s(Users_rated)  9.967e-01      1 1.028e+04  <2e-16 ***
-#   s(Max_players)  3.885e-09      1 0.000e+00   0.423    
-#   s(Playing_time) 4.123e-01      1 7.020e-01   0.192    
-#   s(Min_age)      9.951e-01      1 2.063e+02  <2e-16 ***
-#   s(Owned)        1.000e+00      1 6.412e+05  <2e-16 ***
+#   edf Ref.df        F p-value    
+#   s(Users_rated)  0.9991      1 1795.620  <2e-16 ***
+#   s(Year)         0.9881      1   88.986  <2e-16 ***
+#   s(weights)      1.0000      1 3725.504  <2e-16 ***
+#   s(Playing_time) 0.6394      1    1.827  0.0959 .  
+#   s(Min_age)      0.9901      1  135.384  <2e-16 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# R-sq.(adj) =  0.621   Deviance explained = 62.2%
-# GCV = 1.5141e+07  Scale est. = 1.5102e+07  n = 21631
+# R-sq.(adj) =  0.309   Deviance explained =   31%
+# GCV = 2.7707e+07  Scale est. = 2.7651e+07  n = 21461
 
 
 R2adj=R_extr(model_sp2)
@@ -1354,11 +1448,11 @@ to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
 #let's delete them:
 to_delete_ind=which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
 names="Rank~"
-for(i in colnames(mydata[,c(3:8)[!c(3:8)%in%to_delete_ind[which(to_delete_ind<=8)]]])){
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
   names=paste(names, "+ ","s(",i,",bs='re' )")
 }
 
-for(i in colnames(mydata[,c(-seq(1:8),-to_delete_ind[which(to_delete_ind>8)])])){
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
   names=paste(names, "+ ",i)
 }
 
@@ -1367,101 +1461,657 @@ formula=as.formula(names)
 model_sp2.1=gam(formula,data = mydata)
 model_sp2.1$type="gam"
 summary(model_sp2.1)
-
 # Parametric coefficients:
 #   Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)               42520.33     213.43 199.219  < 2e-16 ***
-#   Negotiation                 514.40     160.34   3.208 0.001338 ** 
-#   Political                  -469.49     183.73  -2.555 0.010615 *  
-#   Abstract.Strategy           279.61     107.05   2.612 0.009006 ** 
-#   Medieval                   -553.79     127.73  -4.336 1.46e-05 ***
-#   Ancient                    -930.93     151.81  -6.132 8.81e-10 ***
-#   Territory.Building         -700.14     179.39  -3.903 9.53e-05 ***
-#   Civilization               -670.91     220.27  -3.046 0.002323 ** 
-#   Nautical                   -918.28     159.33  -5.763 8.37e-09 ***
-#   Farming                   -1043.79     255.74  -4.081 4.49e-05 ***
-#   Bluffing                   -603.25     118.70  -5.082 3.76e-07 ***
-#   Science.Fiction            -301.82     104.04  -2.901 0.003722 ** 
-#   Print...Play               1078.04     161.28   6.684 2.38e-11 ***
-#   Miniatures                  621.36     131.35   4.730 2.25e-06 ***
-#   City.Building             -1502.23     176.34  -8.519  < 2e-16 ***
-#   Wargame                    1720.86      81.71  21.060  < 2e-16 ***
-#   Adventure                   426.09     120.33   3.541 0.000399 ***
-#   Renaissance               -1401.58     243.26  -5.762 8.44e-09 ***
-#   Modern.Warfare              434.11     209.32   2.074 0.038100 *  
-#   Humor                       499.12     121.22   4.118 3.84e-05 ***
-#   Electronic                  358.49     278.55   1.287 0.198113    
-#   Word.Game                   334.07     185.90   1.797 0.072341 .  
-#   Aviation...Flight          -913.34     239.75  -3.809 0.000140 ***
-#   Movies...TV...Radio.theme   364.06     126.84   2.870 0.004105 ** 
-#   Party.Game                  506.97     104.33   4.859 1.19e-06 ***
-#   Memory                      594.10     174.72   3.400 0.000674 ***
-#   Puzzle                     -546.83     156.03  -3.505 0.000458 ***
-#   Real.time                  -853.97     149.80  -5.701 1.21e-08 ***
-#   Trivia                      956.38     174.19   5.491 4.05e-08 ***
-#   Industry...Manufacturing   -798.84     231.39  -3.452 0.000557 ***
-#   Trains                     -705.05     228.18  -3.090 0.002005 ** 
-#   Animals                    -609.80     114.81  -5.312 1.10e-07 ***
-#   X.Childrens.Game.           485.00     112.09   4.327 1.52e-05 ***
-#   Transportation             -732.46     216.79  -3.379 0.000730 ***
-#   Prehistoric                -949.81     310.05  -3.063 0.002191 ** 
-#   Sports                      659.29     178.13   3.701 0.000215 ***
-#   Post.Napoleonic             450.55     259.68   1.735 0.082752 .  
-#   Book                       1221.00     302.25   4.040 5.37e-05 ***
-#   Music                       952.69     424.47   2.244 0.024814 *  
-#   Video.Game.Theme            633.12     211.22   2.997 0.002726 ** 
-#   Mature...Adult             1972.35     323.49   6.097 1.10e-09 ***
+# (Intercept)               21223.71     360.97  58.796  < 2e-16 ***
+#   Economic                    906.51     160.51   5.648 1.65e-08 ***
+#   Negotiation                1493.54     219.15   6.815 9.66e-12 ***
+#   Card.Game                  -560.87      87.07  -6.442 1.21e-10 ***
+#   Fantasy                    -715.80     118.47  -6.042 1.55e-09 ***
+#   Ancient                    -969.96     202.48  -4.790 1.68e-06 ***
+#   Territory.Building         -767.93     242.07  -3.172 0.001514 ** 
+#   Nautical                   -840.08     215.87  -3.892 9.99e-05 ***
+#   Farming                   -1468.74     347.89  -4.222 2.43e-05 ***
+#   Bluffing                   -897.11     168.46  -5.325 1.02e-07 ***
+#   Collectible.Components     1888.07     291.13   6.485 9.05e-11 ***
+#   Miniatures                -1368.93     174.87  -7.828 5.17e-15 ***
+#   City.Building             -1771.75     240.04  -7.381 1.63e-13 ***
+#   Wargame                    2020.67     121.50  16.631  < 2e-16 ***
+#   Adventure                   485.40     167.95   2.890 0.003855 ** 
+#   Renaissance               -1322.40     329.53  -4.013 6.02e-05 ***
+#   Modern.Warfare             1086.00     282.93   3.838 0.000124 ***
+#   Humor                       632.65     162.47   3.894 9.89e-05 ***
+#   Electronic                 1544.37     379.40   4.071 4.71e-05 ***
+#   Deduction                 -1119.71     171.46  -6.531 6.70e-11 ***
+#   Aviation...Flight         -1369.12     324.42  -4.220 2.45e-05 ***
+#   Movies...TV...Radio.theme  1601.05     170.75   9.376  < 2e-16 ***
+#   Memory                     1156.12     239.35   4.830 1.37e-06 ***
+#   Puzzle                    -1306.94     212.51  -6.150 7.89e-10 ***
+#   Real.time                 -1438.07     204.64  -7.027 2.17e-12 ***
+#   Trivia                     2428.18     230.72  10.524  < 2e-16 ***
+#   Industry...Manufacturing   -939.10     322.82  -2.909 0.003629 ** 
+#   Age.of.Reason              -917.21     417.14  -2.199 0.027904 *  
+#   Trains                    -1089.39     295.37  -3.688 0.000226 ***
+#   Animals                   -1093.25     155.79  -7.017 2.33e-12 ***
+#   X.Childrens.Game.          1827.80     152.98  11.948  < 2e-16 ***
+#   Action...Dexterity         -730.05     177.23  -4.119 3.82e-05 ***
+#   Math                       1226.03     433.84   2.826 0.004718 ** 
+#   Video.Game.Theme            502.04     287.31   1.747 0.080581 .  
+#   Mature...Adult             1730.60     430.21   4.023 5.77e-05 ***
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
 # Approximate significance of smooth terms:
-#   edf Ref.df        F p-value    
-#   s(Avg_ratings) 1.0000      1  53824.3  <2e-16 ***
-#   s(Users_rated) 0.9967      1 420656.6  <2e-16 ***
-#   s(Min_age)     0.9948      1    247.6  <2e-16 ***
-#   s(Owned)       1.0000      1 736393.6  <2e-16 ***
+#                     edf Ref.df       F p-value    
+#   s(Users_rated)  0.9993      1 1803.77  <2e-16 ***
+#   s(Year)         0.9907      1  106.31  <2e-16 ***
+#   s(weights)      1.0000      1 3829.10  <2e-16 ***
+#   s(Playing_time) 0.6805      1    2.16  0.0769 .  
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.305   Deviance explained = 30.6%
+# GCV = 2.7866e+07  Scale est. = 2.7816e+07  n = 21461
+
+
+
+#3.2.1) model assessment--------------------------
+gam.check(model_sp2.1)
+
+
+# k'   edf k-index p-value    
+# s(Users_rated)  1.000 0.999    0.54  <2e-16 ***
+# s(Year)         1.000 0.991    0.95  <2e-16 ***
+# s(weights)      1.000 1.000    0.81  <2e-16 ***
+# s(Playing_time) 1.000 0.681    0.95  <2e-16 ***
+#all BAD
+
+
+concurvity(model_sp2.1,full=FALSE)$worst
+# 
+
+#                     para s(Users_rated)    s(Year) s(weights) s(Playing_time)
+# para            1.00000000    0.053367318 0.98899216 0.86031714     0.027812914
+# s(Users_rated)  0.05336732    1.000000000 0.05317235 0.06079448     0.001173565
+# s(Year)         0.98899216    0.053172348 1.00000000 0.85384796     0.027798928
+# s(weights)      0.86031714    0.060794484 0.85384796 1.00000000     0.050774638
+# s(Playing_time) 0.02781291    0.001173565 0.02779893 0.05077464     1.000000000
+
+#interactions
+#weights vs year
+# para... i'll first try to remove the other interactions
+
+names="Rank~s(I(weights*Year))"
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%to_delete_ind[which(to_delete_ind<=7)]]])){
+  names=paste(names, "+ ","s(",i,",bs='re' )")
+}
+
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
+  names=paste(names, "+ ",i)
+}
+
+
+formula=as.formula(names)
+model_sp2.2=gam(formula,data = mydata)
+model_sp2.2$type="gam"
+summary(model_sp2.2)
+
+#Parametric coefficients:
+# Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)               18441.60    1716.31  10.745  < 2e-16 ***
+#   Economic                    822.69     159.25   5.166 2.41e-07 ***
+#   Negotiation                1537.29     217.31   7.074 1.55e-12 ***
+#   Card.Game                  -587.47      86.43  -6.797 1.10e-11 ***
+#   Fantasy                    -539.60     117.84  -4.579 4.69e-06 ***
+#   Ancient                    -779.67     200.99  -3.879 0.000105 ***
+#   Territory.Building         -619.97     240.21  -2.581 0.009859 ** 
+#   Nautical                   -752.72     214.10  -3.516 0.000440 ***
+#   Farming                   -1419.38     344.96  -4.115 3.89e-05 ***
+#   Bluffing                   -931.28     167.09  -5.574 2.53e-08 ***
+#   Collectible.Components     2121.65     288.99   7.341 2.19e-13 ***
+#   Miniatures                -1401.23     173.71  -8.066 7.61e-16 ***
+#   City.Building             -1571.26     238.34  -6.592 4.43e-11 ***
+#   Wargame                    2027.36     120.85  16.775  < 2e-16 ***
+#   Adventure                   548.78     166.55   3.295 0.000986 ***
+#   Renaissance               -1265.98     327.04  -3.871 0.000109 ***
+#   Modern.Warfare              996.25     280.55   3.551 0.000385 ***
+#   Humor                       508.77     161.24   3.155 0.001605 ** 
+#   Electronic                 1462.45     376.20   3.887 0.000102 ***
+#   Deduction                 -1045.80     170.06  -6.150 7.90e-10 ***
+#   Aviation...Flight         -1330.63     321.74  -4.136 3.55e-05 ***
+#   Movies...TV...Radio.theme  1612.14     169.32   9.521  < 2e-16 ***
+#   Memory                      998.98     237.46   4.207 2.60e-05 ***
+#   Puzzle                    -1174.42     210.99  -5.566 2.63e-08 ***
+#   Real.time                 -1619.51     203.27  -7.967 1.70e-15 ***
+#   Trivia                     2105.57     229.45   9.176  < 2e-16 ***
+#   Industry...Manufacturing  -1021.73     320.23  -3.191 0.001422 ** 
+#   Age.of.Reason              -975.54     413.62  -2.359 0.018355 *  
+#   Trains                    -1303.71     293.62  -4.440 9.04e-06 ***
+#   Animals                   -1126.84     154.48  -7.294 3.11e-13 ***
+#   X.Childrens.Game.          1270.64     156.13   8.139 4.21e-16 ***
+#   Action...Dexterity        -1080.99     177.18  -6.101 1.07e-09 ***
+#   Math                       1165.38     430.14   2.709 0.006748 ** 
+#   Video.Game.Theme            538.34     284.88   1.890 0.058808 .  
+#   Mature...Adult             1401.67     427.46   3.279 0.001043 ** 
 #   ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # 
-# R-sq.(adj) =  0.621   Deviance explained = 62.1%
-# GCV = 1.5143e+07  Scale est. = 1.5112e+07  n = 21631
+# Approximate significance of smooth terms:
+#   edf Ref.df       F  p-value    
+#   s(I(weights * Year)) 8.6913992  8.968   42.40  < 2e-16 ***
+#   s(Users_rated)       0.9992043  1.000 1802.01  < 2e-16 ***
+#   s(Year)              0.8562941  1.000   11.12  0.00384 ** 
+#   s(weights)           1.0000000  1.000   36.95 1.31e-06 ***
+#   s(Playing_time)      0.0005467  1.000    0.00  0.41234    
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.317   Deviance explained = 31.8%
+# GCV = 2.7397e+07  Scale est. = 2.7338e+07  n = 21461
+
+#let's remove Playing_time
+
+names="Rank~s(I(weights*Year))"
+for(i in colnames(mydata[,c(3:7)[!c(3:7)%in%c(to_delete_ind[which(to_delete_ind<=7)],6)]])){
+  names=paste(names, "+ ","s(",i,",bs='re' )")
+}
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind[which(to_delete_ind>7)])])){
+  names=paste(names, "+ ",i)
+}
 
 
-#4)comparing models--------------------------------------
+formula=as.formula(names)
+model_sp2.3=gam(formula,data = mydata)
+model_sp2.3$type="gam"
+summary(model_sp2.3)
+
+# Parametric coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)               18340.75    1748.19  10.491  < 2e-16 ***
+#   Economic                    822.25     159.25   5.163 2.45e-07 ***
+#   Negotiation                1536.35     217.31   7.070 1.60e-12 ***
+#   Card.Game                  -586.81      86.43  -6.789 1.16e-11 ***
+#   Fantasy                    -539.61     117.84  -4.579 4.69e-06 ***
+#   Ancient                    -779.11     201.00  -3.876 0.000106 ***
+#   Territory.Building         -619.47     240.21  -2.579 0.009919 ** 
+#   Nautical                   -753.04     214.10  -3.517 0.000437 ***
+#   Farming                   -1418.93     344.96  -4.113 3.92e-05 ***
+#   Bluffing                   -931.80     167.09  -5.577 2.48e-08 ***
+#   Collectible.Components     2120.64     289.00   7.338 2.25e-13 ***
+#   Miniatures                -1401.34     173.71  -8.067 7.58e-16 ***
+#   City.Building             -1570.19     238.34  -6.588 4.56e-11 ***
+#   Wargame                    2025.48     120.85  16.760  < 2e-16 ***
+#   Adventure                   548.55     166.55   3.294 0.000991 ***
+#   Renaissance               -1265.37     327.05  -3.869 0.000110 ***
+#   Modern.Warfare              996.06     280.55   3.550 0.000386 ***
+#   Humor                       509.97     161.24   3.163 0.001564 ** 
+#   Electronic                 1462.52     376.20   3.888 0.000102 ***
+#   Deduction                 -1044.97     170.06  -6.145 8.15e-10 ***
+#   Aviation...Flight         -1330.27     321.74  -4.135 3.57e-05 ***
+#   Movies...TV...Radio.theme  1612.77     169.32   9.525  < 2e-16 ***
+#   Memory                      998.81     237.46   4.206 2.61e-05 ***
+#   Puzzle                    -1174.62     210.99  -5.567 2.62e-08 ***
+#   Real.time                 -1617.26     203.28  -7.956 1.87e-15 ***
+#   Trivia                     2106.50     229.45   9.181  < 2e-16 ***
+#   Industry...Manufacturing  -1021.13     320.24  -3.189 0.001431 ** 
+#   Age.of.Reason              -975.79     413.62  -2.359 0.018326 *  
+#   Trains                    -1302.66     293.63  -4.436 9.19e-06 ***
+#   Animals                   -1125.55     154.48  -7.286 3.31e-13 ***
+#   X.Childrens.Game.          1274.32     156.13   8.162 3.47e-16 ***
+#   Action...Dexterity        -1077.88     177.18  -6.083 1.20e-09 ***
+#   Math                       1165.39     430.14   2.709 0.006748 ** 
+#   Video.Game.Theme            538.96     284.88   1.892 0.058522 .  
+#   Mature...Adult             1405.18     427.47   3.287 0.001013 ** 
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Approximate significance of smooth terms:
+#   edf Ref.df       F  p-value    
+#   s(I(weights * Year)) 8.8018  8.987   42.66  < 2e-16 ***
+#   s(Users_rated)       0.9998  1.000 1802.86  < 2e-16 ***
+#   s(Year)              0.9712  1.000   10.87  0.00786 ** 
+#   s(weights)           0.9243  1.000   35.93 7.74e-07 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.317   Deviance explained = 31.8%
+# GCV = 2.7397e+07  Scale est. = 2.7338e+07  n = 21461
+
+
+
+
+gam.check(model_sp2.3)
+
+# k'   edf k-index p-value    
+# s(I(weights * Year)) 9.000 8.802    0.94  <2e-16 ***
+# s(Users_rated)       1.000 1.000    0.55  <2e-16 ***
+# s(Year)              1.000 0.971    0.93  <2e-16 ***
+# s(weights)           1.000 0.924    0.85  <2e-16 ***
+#ALL BAD
+
+concurvity(model_sp2.3,full=FALSE)$worst
+#                       para        s(I(weights * Year)) s(Users_rated)   s(Year)   s(weights)
+# para                 1.000000e+00    1.069680e-28     0.053367318     0.988992161  0.86031714
+# s(I(weights * Year)) 1.381165e-28    1.000000e+00     0.009354728     0.008949032  0.13788133
+# s(Users_rated)       5.336732e-02    9.354728e-03     1.000000000     0.053172348  0.06079448
+# s(Year)              9.889922e-01    8.949032e-03     0.053172348     1.000000000  0.85384796
+# s(weights)           8.603171e-01    1.378813e-01     0.060794484     0.853847956  1.00000000
+
+#interactions still.
+#weights vs year
+# para...year and weights
+
+ypred <- predict(model_sp2.3, newdata=xnew)
+temp=sample(21461,10000)
+dev.new()
+plot(ypred[temp],mydata$Rank[temp],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
+
+dev.new()
+plot(ypred[ypred>0],mydata$Rank[ypred>0],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
+
+
+#4)comparing models (to check)--------------------------------------
 #do we really need a nonparametri contribution for the categories or we can use semiparametric models?
-#let's compare models in 2.3 (model_ns2.2) and 3.1 (model_sp1.1)
+#let's compare models in 2.3 (model_ns2.1) and 3.1 (model_sp1.1)
 #                 and in 1 (model_re1)  and 3.2  (model_sp2.1)
 
-hist(model_ns2.2$residuals)
-qqnorm(model_ns2.2$residuals)
-hist(model_sp1.1$residuals)
-qqnorm(model_sp1.1$residuals)
-# normal-ish ==> i can use parametric test(can I?):
-anova(model_sp1.1,model_ns2.2, test = "F")
-#pvalue=0.1129==>i modelli in realtà sono simili( up to alpha=0.1) e potrei usare quello meno complesso
+hist(model_ns2.1$residuals)
+qqnorm(model_ns2.1$residuals)
+#normal!
 
+hist(model_sp1.2$residuals)
+qqnorm(model_sp1.2$residuals)
+# normal too ==> i can use parametric test(can I?):
+anova(model_sp1.2,model_ns2.1, test = "F")
+#pvalue= boh
 
 hist(model_re1$residuals) #normal-ish
-qqnorm(model_re1$residuals) #eehmm
+qqnorm(model_re1$residuals) 
 hist(model_sp2.1$residuals)
 qqnorm(model_sp2.1$residuals)
 # normal-ish ==> i can use parametric test(can I?):
 anova(model_sp2.1,model_re1, test = "F")
-#pvalue=0.1704==> i modelli in realtà sono simili e potrei usare quello meno complesso
+#pvalue=0.0336 *==> i modelli in realtà sono diversi, meglio usare quello più complesso
 
-
+#so let's keep sp1.2 and re1
 
 #test non parametrici
 #coming soon
 
-#5) plots------------------------------------
-# dev.new()
-# gam::plot.Gam(model_sp1.1,se=TRUE)
 
-#altri
-#coming soon
+#3.3)Thin plate regression splines+Tensor product smooths ----------
+names="Rank~"
+for(i in colnames(mydata[,3:7])){
+  names=paste(names, "+ ","te(",i,",bs='tp',k=5)" )
+}
+
+for(i in colnames(mydata[,8:ncol(mydata)])){
+  names=paste(names, "+ ",i)
+}
+
+formula=as.formula(names)
+model_ts=gam(formula,data = mydata)
+model_ts$type="gam"
+summary(model_ts)
+# Parametric coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+#   (Intercept)               10790.67      63.09 171.048  < 2e-16 ***
+#   Economic                    975.51     141.87   6.876 6.32e-12 ***
+#   Negotiation                1466.12     193.54   7.575 3.73e-14 ***
+#   Card.Game                  -398.61      77.41  -5.150 2.63e-07 ***
+#   Fantasy                    -233.57     105.57  -2.212 0.026950 *  
+#   Medieval                    -41.11     153.46  -0.268 0.788783    
+#   Ancient                    -407.04     178.97  -2.274 0.022955 *  
+#   Territory.Building         -304.35     214.19  -1.421 0.155355    
+#   Nautical                   -328.36     190.93  -1.720 0.085491 .  
+#   Exploration                 118.65     173.95   0.682 0.495189    
+#   Farming                    -905.40     307.08  -2.948 0.003198 ** 
+#   Bluffing                   -779.59     148.79  -5.240 1.62e-07 ***
+#   Collectible.Components     1549.21     257.53   6.016 1.82e-09 ***
+#   Miniatures                -1017.20     155.40  -6.545 6.06e-11 ***
+#   City.Building              -748.08     212.74  -3.516 0.000438 ***
+#   Wargame                     913.59     114.07   8.009 1.21e-15 ***
+#   Adventure                   675.63     157.09   4.301 1.71e-05 ***
+#   Renaissance                -540.56     291.56  -1.854 0.063747 .  
+#   Modern.Warfare              751.21     249.70   3.008 0.002629 ** 
+#   Humor                       725.17     144.52   5.018 5.27e-07 ***
+#   Electronic                 1343.29     334.74   4.013 6.02e-05 ***
+#   Deduction                  -670.69     151.75  -4.420 9.94e-06 ***
+#   Word.Game                  -332.97     221.64  -1.502 0.133038    
+#   Aviation...Flight         -1186.72     286.44  -4.143 3.44e-05 ***
+#   Movies...TV...Radio.theme  1546.97     151.09  10.239  < 2e-16 ***
+#   Memory                      544.76     211.60   2.574 0.010046 *  
+#   Puzzle                     -926.45     188.01  -4.928 8.39e-07 ***
+#   Real.time                 -1069.57     181.43  -5.895 3.80e-09 ***
+#   Trivia                     2021.98     206.50   9.792  < 2e-16 ***
+#   Industry...Manufacturing   -446.20     285.20  -1.565 0.117711    
+#   Age.of.Reason              -714.00     368.12  -1.940 0.052444 .  
+#   Trains                    -1412.59     261.55  -5.401 6.70e-08 ***
+#   Animals                    -815.12     138.21  -5.898 3.74e-09 ***
+#   X.Childrens.Game.           893.15     149.06   5.992 2.11e-09 ***
+#   Sports                     -443.93     214.11  -2.073 0.038145 *  
+#   Action...Dexterity        -1023.67     158.34  -6.465 1.03e-10 ***
+#   Math                        739.78     382.83   1.932 0.053321 .  
+#   Video.Game.Theme            870.07     253.59   3.431 0.000602 ***
+#   Mature...Adult             1449.33     424.29   3.416 0.000637 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Approximate significance of smooth terms:
+#   edf Ref.df        F  p-value    
+#   te(Users_rated)  3.998  4.000 1806.641  < 2e-16 ***
+#   te(Year)         3.991  4.000  208.431  < 2e-16 ***
+#   te(weights)      3.525  3.868  592.797  < 2e-16 ***
+#   te(Playing_time) 3.790  3.968    6.491 3.52e-05 ***
+#   te(Min_age)      3.561  3.857   10.146  < 2e-16 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.459   Deviance explained = 46.1%
+# GCV = 2.1688e+07  Scale est. = 2.163e+07  n = 21461
+
+R2adj=R_extr(model_ts)
+R2adj.perm=perm_sel(model_ts)
+thres=0.05
+to_delete_perm=(abs(R2adj-R2adj.perm)<=thres) #if the difference in terms of R^2adj is not so big we can delete those variables
+#all true
+#let's delete them:
+to_delete_ind=which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
+#all>7
+names="Rank~"
+for(i in colnames(mydata[,3:7])){
+  names=paste(names, "+ ","te(",i,",bs='tp',k=5)" )
+}
+
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind)])){
+  names=paste(names, "+ ",i)
+}
+
+formula=as.formula(names)
+model_ts1=gam(formula,data = mydata)
+model_ts1$type="gam"
+summary(model_ts1)
+
+# Parametric coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)               10761.75      60.98 176.491  < 2e-16 ***
+#   Economic                    934.18     138.77   6.732 1.72e-11 ***
+#   Negotiation                1476.13     193.29   7.637 2.32e-14 ***
+#   Card.Game                  -387.61      77.15  -5.024 5.10e-07 ***
+#   Fantasy                    -223.26     105.17  -2.123 0.033778 *  
+#   Ancient                    -402.94     178.75  -2.254 0.024197 *  
+#   Nautical                   -315.93     190.62  -1.657 0.097458 .  
+#   Farming                    -946.29     306.39  -3.089 0.002014 ** 
+#   Bluffing                   -778.28     148.72  -5.233 1.68e-07 ***
+#   Collectible.Components     1556.51     257.45   6.046 1.51e-09 ***
+#   Miniatures                -1002.85     155.26  -6.459 1.08e-10 ***
+#   City.Building              -764.16     211.92  -3.606 0.000312 ***
+#   Wargame                     931.18     113.21   8.225  < 2e-16 ***
+#   Adventure                   724.91     148.39   4.885 1.04e-06 ***
+#   Renaissance                -530.03     291.12  -1.821 0.068676 .  
+#   Modern.Warfare              759.08     249.60   3.041 0.002359 ** 
+#   Humor                       722.57     144.50   5.001 5.76e-07 ***
+#   Electronic                 1353.23     334.67   4.043 5.28e-05 ***
+#   Deduction                  -665.47     151.64  -4.389 1.15e-05 ***
+#   Aviation...Flight         -1183.38     286.34  -4.133 3.60e-05 ***
+#   Movies...TV...Radio.theme  1557.14     150.88  10.320  < 2e-16 ***
+#   Memory                      547.31     211.59   2.587 0.009699 ** 
+#   Puzzle                     -924.30     188.01  -4.916 8.88e-07 ***
+#   Real.time                 -1080.65     181.05  -5.969 2.43e-09 ***
+#   Trivia                     2010.78     206.14   9.754  < 2e-16 ***
+#   Age.of.Reason              -704.95     368.04  -1.915 0.055450 .  
+#   Trains                    -1381.67     260.90  -5.296 1.20e-07 ***
+#   Animals                    -803.49     137.96  -5.824 5.83e-09 ***
+#   X.Childrens.Game.           896.36     148.74   6.027 1.70e-09 ***
+#   Sports                     -427.57     213.86  -1.999 0.045587 *  
+#   Action...Dexterity        -1012.97     158.13  -6.406 1.53e-10 ***
+#   Math                        712.36     382.40   1.863 0.062496 .  
+#   Video.Game.Theme            877.87     253.52   3.463 0.000536 ***
+#   Mature...Adult             1469.61     423.80   3.468 0.000526 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Approximate significance of smooth terms:
+#   edf Ref.df       F  p-value    
+#   te(Users_rated)  3.998  4.000 1817.12  < 2e-16 ***
+#   te(Year)         3.991  4.000  209.59  < 2e-16 ***
+#   te(weights)      3.518  3.864  608.09  < 2e-16 ***
+#   te(Playing_time) 3.784  3.966    6.28 5.25e-05 ***
+#   te(Min_age)      3.509  3.824   10.39  < 2e-16 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.459   Deviance explained = 46.1%
+# GCV = 2.1685e+07  Scale est. = 2.1632e+07  n = 21461
 
 
+#3.3.1) model assessment----------------------------------
+gam.check(model_ts1)
+
+#   te(Users_rated)  4.00 4.00    0.64  <2e-16 ***
+#   te(Year)         4.00 3.99    0.94  <2e-16 ***
+#   te(weights)      4.00 3.52    0.93  <2e-16 ***
+#   te(Playing_time) 4.00 3.78    1.00   0.370    
+#   te(Min_age)      4.00 3.51    0.97   0.025 *  
+#bad
+
+concurvity(model_ts1,full=FALSE)$worst
+#                         para te(Users_rated)     te(Year)  te(weights) te(Playing_time)  te(Min_age)
+# para             1.000000e+00    2.899523e-28 9.184196e-17 6.187532e-29     1.442378e-20 5.965277e-19
+# te(Users_rated)  2.780970e-28    1.000000e+00 1.608132e-03 2.031394e-02     9.490836e-05 1.792023e-02
+# te(Year)         9.184197e-17    1.608132e-03 1.000000e+00 2.323390e-03     2.236708e-03 1.331270e-02
+# te(weights)      6.232286e-29    2.031394e-02 2.323390e-03 1.000000e+00     2.599076e-01 3.617748e-01
+# te(Playing_time) 1.442562e-20    9.490836e-05 2.236708e-03 2.599076e-01     1.000000e+00 7.238612e-02
+# te(Min_age)      5.965279e-19    1.792023e-02 1.331270e-02 3.617748e-01     7.238612e-02 1.000000e+00
+# 
+#good
+#let's increase k
+names="Rank~"
+for(i in colnames(mydata[,3:7])){
+  names=paste(names, "+ ","te(",i,",bs='tp',k=7)" )
+}
+
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind)])){
+  names=paste(names, "+ ",i)
+}
+
+formula=as.formula(names)
+model_ts2=gam(formula,data = mydata)
+model_ts2$type="gam"
+summary(model_ts2)
+
+
+
+# 
+# Parametric coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)               10824.23      57.39 188.613  < 2e-16 ***
+#   Economic                    892.71     129.81   6.877 6.28e-12 ***
+#   Negotiation                1564.81     180.78   8.656  < 2e-16 ***
+#   Card.Game                  -312.82      72.20  -4.333 1.48e-05 ***
+#   Fantasy                     -92.03      98.34  -0.936 0.349394    
+#   Ancient                    -191.85     167.13  -1.148 0.251010    
+#   Nautical                   -220.10     178.18  -1.235 0.216741    
+#   Farming                    -747.91     286.40  -2.611 0.009024 ** 
+#   Bluffing                   -628.43     139.06  -4.519 6.24e-06 ***
+#   Collectible.Components     1591.06     240.72   6.610 3.95e-11 ***
+#   Miniatures                 -841.87     145.33  -5.793 7.01e-09 ***
+#   City.Building              -398.49     198.21  -2.010 0.044401 *  
+#   Wargame                     352.67     107.75   3.273 0.001066 ** 
+#   Adventure                   668.30     138.75   4.816 1.47e-06 ***
+#   Renaissance                -455.06     272.18  -1.672 0.094554 .  
+#   Modern.Warfare              642.80     233.29   2.755 0.005868 ** 
+#   Humor                       757.98     135.12   5.610 2.05e-08 ***
+#   Electronic                 1205.70     312.85   3.854 0.000117 ***
+#   Deduction                  -561.00     141.76  -3.957 7.60e-05 ***
+#   Aviation...Flight         -1097.46     267.64  -4.100 4.14e-05 ***
+#   Movies...TV...Radio.theme  1487.58     141.12  10.541  < 2e-16 ***
+#   Memory                      351.05     198.03   1.773 0.076285 .  
+#   Puzzle                     -863.48     175.74  -4.913 9.02e-07 ***
+#   Real.time                  -909.19     169.30  -5.370 7.94e-08 ***
+#   Trivia                     1851.16     192.92   9.596  < 2e-16 ***
+#   Age.of.Reason              -450.78     343.97  -1.311 0.190030    
+#   Trains                    -1382.28     244.00  -5.665 1.49e-08 ***
+#   Animals                    -627.37     129.05  -4.862 1.17e-06 ***
+#   X.Childrens.Game.           410.56     159.01   2.582 0.009828 ** 
+#   Sports                     -788.68     200.17  -3.940 8.17e-05 ***
+#   Action...Dexterity        -1015.71     148.41  -6.844 7.92e-12 ***
+#   Math                        603.45     357.45   1.688 0.091385 .  
+#   Video.Game.Theme            892.05     236.96   3.765 0.000167 ***
+#   Mature...Adult             1302.96     410.73   3.172 0.001514 ** 
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+#   Approximate significance of smooth terms:
+#   edf Ref.df        F p-value    
+#   te(Users_rated)  5.997  6.000 1829.910 < 2e-16 ***
+#   te(Year)         5.946  5.999  205.443 < 2e-16 ***
+#   te(weights)      5.567  5.918  373.289 < 2e-16 ***
+#   te(Playing_time) 4.232  4.898    6.552 5.7e-06 ***
+#   te(Min_age)      5.675  5.929   10.522 < 2e-16 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.528   Deviance explained = 52.9%
+# GCV = 1.8944e+07  Scale est. = 1.8889e+07  n = 21461
+
+gam.check(model_ts2)
+
+
+
+#                     k'  edf k-index p-value    
+# te(Users_rated)  6.00 6.00    0.69  <2e-16 ***
+# te(Year)         6.00 5.95    0.95  <2e-16 ***
+# te(weights)      6.00 5.57    0.92  <2e-16 ***
+# te(Playing_time) 6.00 4.23    0.98    0.10    
+# te(Min_age)      6.00 5.68    1.00    0.43    
+
+R2adj=R_extr(model_ts2)
+R2adj.perm=perm_sel(model_ts2)
+thres=0.05
+to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
+#if the difference in terms of R^2adj is not so big we can delete those variables
+#all true
+#let's delete them:
+to_delete_ind=c(to_delete_ind,which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
+)
+
+
+names="Rank~"
+for(i in colnames(mydata[,3:7])){
+  names=paste(names, "+ ","te(",i,",bs='tp',k=7)" )
+}
+
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind)])){
+  names=paste(names, "+ ",i)
+}
+
+formula=as.formula(names)
+model_ts3=gam(formula,data = mydata)
+model_ts3$type="gam"
+summary(model_ts3)
+
+
+#now other vars are not sign
+
+
+R2adj=R_extr(model_ts3)
+R2adj.perm=perm_sel(model_ts3)
+thres=0.05
+to_delete_perm=(abs(R2adj-R2adj.perm)<=thres)
+#if the difference in terms of R^2adj is not so big we can delete those variables
+#all true
+#let's delete them:
+to_delete_ind=c(to_delete_ind,which(names(mydata) %in% names(to_delete_perm[to_delete_perm=TRUE]))
+)
+
+
+names="Rank~"
+for(i in colnames(mydata[,3:7])){
+  names=paste(names, "+ ","te(",i,",bs='tp',k=7)" )
+}
+
+for(i in colnames(mydata[,c(-seq(1:7),-to_delete_ind)])){
+  names=paste(names, "+ ",i)
+}
+
+formula=as.formula(names)
+model_ts4=gam(formula,data = mydata)
+model_ts4$type="gam"
+summary(model_ts4)
+
+# Parametric coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)               10815.01      55.96 193.279  < 2e-16 ***
+#   Economic                    888.97     129.42   6.869 6.65e-12 ***
+#   Negotiation                1559.64     180.75   8.629  < 2e-16 ***
+#   Card.Game                  -320.71      71.99  -4.455 8.44e-06 ***
+#   Farming                    -743.21     286.30  -2.596 0.009442 ** 
+#   Bluffing                   -635.24     139.08  -4.568 4.96e-06 ***
+#   Collectible.Components     1583.20     240.18   6.592 4.45e-11 ***
+#   Miniatures                 -847.29     144.38  -5.868 4.46e-09 ***
+#   City.Building              -411.60     197.92  -2.080 0.037570 *  
+#   Wargame                     325.70     106.50   3.058 0.002229 ** 
+#   Adventure                   628.27     135.22   4.646 3.40e-06 ***
+#   Renaissance                -471.21     271.76  -1.734 0.082940 .  
+#   Modern.Warfare              666.83     232.54   2.868 0.004141 ** 
+#   Humor                       764.13     135.08   5.657 1.56e-08 ***
+#   Electronic                 1205.66     312.82   3.854 0.000116 ***
+#   Deduction                  -544.39     141.56  -3.846 0.000121 ***
+#   Word.Game                  -459.48     207.13  -2.218 0.026546 *  
+#   Aviation...Flight         -1081.23     267.26  -4.046 5.24e-05 ***
+#   Movies...TV...Radio.theme  1488.81     141.08  10.553  < 2e-16 ***
+#   Memory                      346.33     198.00   1.749 0.080285 .  
+#   Puzzle                     -855.15     175.65  -4.869 1.13e-06 ***
+#   Real.time                  -877.75     169.57  -5.176 2.28e-07 ***
+#   Trivia                     1884.87     193.05   9.764  < 2e-16 ***
+#   Trains                    -1358.86     243.49  -5.581 2.42e-08 ***
+#   Animals                    -630.20     128.98  -4.886 1.04e-06 ***
+#   X.Childrens.Game.           395.45     158.87   2.489 0.012811 *  
+#   Sports                     -787.59     200.06  -3.937 8.29e-05 ***
+#   Action...Dexterity        -1026.39     148.54  -6.910 4.98e-12 ***
+#   Math                        606.13     357.41   1.696 0.089921 .  
+#   Video.Game.Theme            887.75     236.66   3.751 0.000176 ***
+#   Mature...Adult             1295.37     410.77   3.153 0.001616 ** 
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Approximate significance of smooth terms:
+#   edf Ref.df        F  p-value    
+# te(Users_rated)  5.997  6.000 1840.430  < 2e-16 ***
+#   te(Year)         5.946  5.999  207.902  < 2e-16 ***
+#   te(weights)      5.562  5.916  383.368  < 2e-16 ***
+#   te(Playing_time) 4.222  4.888    6.447 7.35e-06 ***
+#   te(Min_age)      5.687  5.934   10.473  < 2e-16 ***
+#   ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# R-sq.(adj) =  0.528   Deviance explained = 52.9%
+# GCV = 1.8938e+07  Scale est. = 1.8887e+07  n = 21461
+gam.check(model_ts4)
+
+#   te(Users_rated)  6.00 6.00    0.71  <2e-16 ***
+#   te(Year)         6.00 5.95    0.93  <2e-16 ***
+#   te(weights)      6.00 5.56    0.94  <2e-16 ***
+#   te(Playing_time) 6.00 4.22    0.99    0.32    
+#   te(Min_age)      6.00 5.69    0.98    0.16   
+concurvity(model_ts4,full=FALSE)$worst
+#ok
+
+plot(model_ts4)
+
+
+ypred <- predict(model_ts4, newdata=xnew)
+temp=sample(21461,10000)
+dev.new()
+plot(ypred[temp],mydata$Rank[temp],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
+
+dev.new()
+plot(ypred[ypred>0][temp],mydata$Rank[ypred>0][temp],main="Response vs. Fitted Values",xlab="Fitted Values",ylab="Response")
+lines(seq(0,21461,0.5),seq(0,21461,0.5),col="red")
 
 
 
