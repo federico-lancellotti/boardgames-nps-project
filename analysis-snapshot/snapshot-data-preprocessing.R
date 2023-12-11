@@ -84,9 +84,9 @@ data <- data[!is.na(data$boardgamepublisher),]
 
 ## Parsing function
 library(jsonlite)
-publishers <- "['GP Games', 'Lakeside', \"OPEN'N PLAY\", 'Pelikan']"
-publishers <- data$boardgamepublisher[data$id == 25729]
-publishers <- data$boardgamepublisher[data$id == 235512]
+# publishers <- "['GP Games', 'Lakeside', \"OPEN'N PLAY\", 'Pelikan']"
+# publishers <- data$boardgamepublisher[data$id == 25729]
+# publishers <- data$boardgamepublisher[data$id == 235512]
 
 parsePublishers <- function(publishers){
   publishers <- gsub("^\\[|\\]$", "", publishers)

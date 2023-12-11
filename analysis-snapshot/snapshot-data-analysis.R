@@ -88,10 +88,10 @@ sum(T_H0>=T0)/B
 covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
                                          covariates.categories.toremove)
 
-covariates.others <- c("average", "minplayers", "maxplayers", "weight", "log(playingtime+1)", "minage", "year", "dimpublisher", "avgpublisher")
+covariates.others <- c("maxplayers", "weight", "log(playingtime+1)", "minage", "year", "dimpublisher", "avgpublisher")
 covariates.others <- paste0("s(", covariates.others, ", bs='cr')")
 
-covariates.interactions <- c("I(average*weight)", "I(average*log(playingtime+1))", "I(weight*log(playingtime+1))")
+covariates.interactions <- c("I(year*weight)", "I(minplayers*log(playingtime+1))", "I(weight*log(playingtime+1))")
 covariates.interactions <- paste0("s(", covariates.interactions, ", bs='cr')")
 
 covariates <- paste(c(covariates.others, covariates.interactions, covariates.categories.reduced), collapse=" + ")
@@ -100,7 +100,7 @@ target <- "log(users_rated + 1)"
 formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
 
 model <- gam(formula, data=data)
-summary(model)  # R-sq.(adj) =  0.569   Deviance explained = 57.2%
-                # GCV = 0.91733  Scale est. = 0.91051   n = 21235
+summary(model)  # R-sq.(adj) =   0.54   Deviance explained = 54.3%
+                # GCV = 0.97871  Scale est. = 0.97206   n = 21235
 
 
