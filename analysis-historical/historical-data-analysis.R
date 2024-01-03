@@ -3,10 +3,11 @@ library(dplyr)
 library(tidyr)
 library(fda)
 library(fields)
+library(fdANOVA)
 
 
 # Import data -----------------------------------------------------------------
-data <- read.csv("./data/usersRated_preproc.csv")
+data <- read.csv("../data-historical/usersRated_preproc.csv")
 
 ## How many categories
 catList.index <- which(colnames(data) == "Category")
@@ -127,4 +128,41 @@ par(mfrow=c(1,3))
 plot.pca.fd(pca.data, nx=100, pointplot=TRUE, harm=c(1,2,3), expand=0, cycle=FALSE)
 
 
+# Functional ANOVA ------------------------------------------------------------
+gait.data.frame <- as.data.frame(gait)
+x.gait <- vector("list", 2)
+x.gait[[1]] <- as.matrix(gait.data.frame[, 1:39])
+x.gait[[2]] <- as.matrix(gait.data.frame[, 40:78])
 
+group.label.gait <- rep(1:3, each = 13)
+
+fbasis <- create.bspline.basis(rangeval = c(0.025, 0.975), 19, norder = 4)
+own.basis <- Data2fd(seq(0.025, 0.975, len = 20), x.gait[[1]], fbasis)$coefs
+own.cross.prod.mat <- inprod(fbasis, fbasis)
+
+fanova.tests(x.gait[[1]], group.label.gait, test = "FP",
+             paramFP = list(B.FP = 1000, basis = "own",
+                            own.basis = own.basis,
+                            own.cross.prod.mat = own.cross.prod.mat))
+
+
+n <- 1000
+plotFANOVA(x=Xsp0[,1:n], group.label=as.character(data[1:n,]$Economic), int=c(0, 1), means=TRUE)
+
+own.cross.prod.mat <- inprod(basis, basis)
+fanova <- fanova.tests(Xsp0[,1:n], data[1:n,]$Economic, test = "FP",
+                       param = list(B.FP = 10, basis = "own",
+                                      own.basis = t(basismat),
+                                      own.cross.prod.mat = own.cross.prod.mat))
+
+fanova <- fanova.tests(Xsp0[,1:n], data[1:n,]$Economic, test = "GPF")
+
+
+
+dim(Xsp0[,1:n])
+length(data[1:n,]$Economic)
+
+dim(x.gait[[1]])
+length(group.label.gait)
+dim(own.basis)
+dim(own.cross.prod.mat)
