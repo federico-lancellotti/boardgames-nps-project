@@ -36,7 +36,7 @@ catList.index <- which(colnames(data) == "Category") + 1
 covariates.categories <- colnames(data[,catList.index:ncol(data)])
 # covariates.categories <- paste0("s(", covariates.categories, ", bs='re')")
 
-covariates.others <- c("average", "minplayers", "maxplayers", "weight", "log(playingtime+1)", "minage", "dimpublisher", "avgpublisher")
+covariates.others <- c("average", "minplayers", "weight", "log(playingtime+1)", "minage", "dimpublisher", "avgpublisher")
 covariates.others <- paste0("s(", covariates.others, ", bs='tp', m=3)")
 
 covariates <- paste(c(covariates.others, covariates.categories), collapse=" + ")
@@ -88,7 +88,7 @@ sum(T_H0>=T0)/B
 covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
                                          covariates.categories.toremove)
 
-covariates.others <- c("maxplayers", "weight", "log(playingtime+1)", "minage", "year", "dimpublisher", "avgpublisher")
+covariates.others <- c("average", "maxplayers", "weight", "log(playingtime+1)", "minage", "year", "dimpublisher", "avgpublisher")
 covariates.others <- paste0("s(", covariates.others, ", bs='cr')")
 
 covariates.interactions <- c("I(year*weight)", "I(minplayers*log(playingtime+1))", "I(weight*log(playingtime+1))")
@@ -103,4 +103,5 @@ model <- gam(formula, data=data)
 summary(model)  # R-sq.(adj) =   0.54   Deviance explained = 54.3%
                 # GCV = 0.97871  Scale est. = 0.97206   n = 21235
 
+plot(model)
 
