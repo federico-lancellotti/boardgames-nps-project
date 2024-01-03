@@ -66,5 +66,5 @@ which(is.na(data$X2016.10.13))
 
 
 # Save the preprocessed data --------------------------------------------------
-write.csv(data, file = "data/usersRated_preproc.csv", row.names = FALSE)
+write.csv(data, file = "../data-historical/usersRated_preproc.csv", row.names = FALSE)
 
