@@ -1,0 +1,263 @@
+---
+title: "TS1"
+output: html_document
+date: "2024-01-05"
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup}
+knitr::opts_chunk$set
+```
+## load data
+```{r,warning=FALSE}
+library(roahd)
+library(dplyr)
+library(tidyr)
+library(fda)
+library(fields)
+
+setwd("C:/Users/Silvia/Desktop/23-24/NONPAR/project")
+rated=read.csv("data/usersRated_diff_weekly.csv",head=T)
+set.seed(1234)
+i=sample(1:nrow(rated),500) #500 games
+ord_i=order(i)
+rated_sub=rated[i[ord_i],90:ncol(rated)]
+```
+```{r}
+plot()
+```
+
+## Corr index
+```{r,warning=FALSE}
+# Spearman index:
+# spe=cor(rated_sub.fda ,method = "spearman")
+# spe=
+#res=cor.test(as.numeric(rated_sub[1,]), as.numeric(rated_sub[2,]), method="spearman")
+correlation_results <- matrix(0,500,500)
+for (i in seq(500)) {
+ for (j in seq(i,500)) {
+   
+     result <- cor.test(as.numeric(rated_sub[i,]),
+                        as.numeric(rated_sub[j,]),
+                        method="spearman")
+     correlation_results[i,j]<-correlation_results[j,i] <- result$estimate
+ }
+}
+
+#heatmap(correlation_results)
+
+```
+
+```{r}
+library(corrplot)
+heatmap(correlation_results)
+corrplot(correlation_results)
+correlation_results
+```
+```{r}
+correlation_results[which(correlation_results>0.5)]
+```
+
+
+
+## Outliergram
+
+```{r, message=FALSE}
+#phase outliers
+time_points <- seq(0, 1, length.out = ncol(rated_sub))
+
+# Create a functional data object
+library(fda.usc)
+
+rated_sub.fda <- fData(time_points, rated_sub)
+out_<- outliergram(rated_sub.fda)
+out_$ID_outliers
+```
+
+## FBoxplot
+```{r,message=FALSE, warning=FALSE}
+#shape out
+box=fbplot(rated_sub.fda, main="fun boxplot")
+box$ID_outliers #194 outliers 
+```
+```{r echo=FALSE,fig.show=}
+dev.new()
+#par(mfrow=c(3,1))
+plot(rated_sub.fda,main= "full dataset")
+plot(rated_sub.fda[box$ID_outliers, ,],main= "outliers")
+plot(rated_sub.fda[-box$ID_outliers, ,],main= "-outliers")
+
+
+```
+```{r}
+which(rated_sub>1200,arr.ind = TRUE)
+
+```
+```{r}
+rated[4973,2]
+```
+
+
+
+## ftsm
+
+
+
+```{r fts}
+#FTS decomposition--
+library(data.table)
+library(fds)
+library(fda)
+library(ftsa)
+#each column of the matrix data is assumed to contain a single (univariate) time series
+fts=transpose(rated_sub)
+colnames(fts)=seq(1:500)
+rownames(fts)=paste0("w", seq(1, 369))
+fts_ts=ts(fts,frequency = 52, start = c(2016, 42))
+plot.ts(fts_ts[,1:10])
+dec=decompose(fts_ts)
+trend_median <- apply(dec$trend, 1, median)
+plot(trend_median, type = "l", ylab = "Median Trend", main = "Median Trend Plot")
+```
+
+
+
+```{r fig.height=9, fig.width=10}
+dec1=decompose(fts_ts[,102])
+plot(dec1)
+#smoothing trend=> mediana=> forecast
+```
+
+```{r}
+c1 <- fts_ts[,102] - dec1$seasonal
+plot.ts(c1)
+```
+```{r}
+#tutti i trend(mediana) per categoria vs tutti i trend(mediana)
+#tutti i season per categoria(mediana) vs tutti i season (mediana)
+rated.tot=rated[,89:ncol(rated)]
+fts.tot=ts(transpose(rated.tot),frequency = 52, start = c(2016, 42))
+dec.tot=decompose(fts.tot)
+tot_median.trend=apply(dec.tot$trend, 1, median)
+#tot_median.season=apply(matrix(dec.tot$seasonal,nrow=25033,ncol=370, byrow=TRUE),1,median)
+median.trend=matrix(rep(0,32560),ncol =370)
+rownames(median.trend)=colnames(rated[1:88])
+median.season=median.trend
+#median is a time*n_categories matrix
+for (i in 5:40) {
+  df=rated[rated[,i]==1,89:ncol(rated)]
+  df.dec=decompose(ts(transpose(df),frequency = 52, 
+                      start = c(2016, 42)))
+  median.trend[i,] <- apply(df.dec$trend, 1, median)
+  #median.season[i,] <- apply(as.matrix(df.dec$seasonal,
+                                  #nrow=nrow(df),ncol=370), 1, median)
+  }
+for (i in 41:88) {
+  df=rated[rated[,i]==1,89:ncol(rated)]
+  df.dec=decompose(ts(transpose(df),frequency = 52, 
+                      start = c(2016, 42)))
+  median.trend[i,] <- apply(df.dec$trend, 1, median)
+  #median.season[i,] <- apply(as.matrix(df.dec$seasonal,
+                                  #nrow=nrow(df),ncol=370), 1, median)
+  }
+median.trend=median.trend[5:nrow(median.trend),]
+saveRDS(median.trend,file="C:/Users/Silvia/Desktop/23-24/NONPAR/project/median_trend.RDS")
+
+```
+
+
+```{r}
+## Plot of the medians ----
+date.begin <- as.Date("2016-10-12")
+date.end <- as.Date("2023-11-04")
+T <- as.numeric(date.end - date.begin)
+t <- seq(0, 1, length.out=370)
+years.breaks <- c(round(as.numeric((as.Date("2017-1-1") - date.begin)) / T * length(t)),
+                  round(as.numeric((as.Date("2018-1-1") - date.begin)) / T * length(t)),
+                  round(as.numeric((as.Date("2019-1-1") - date.begin)) / T * length(t)),
+                  round(as.numeric((as.Date("2020-1-1") - date.begin)) / T * length(t)),
+                  round(as.numeric((as.Date("2021-1-1") - date.begin)) / T * length(t)),
+                  round(as.numeric((as.Date("2022-1-1") - date.begin)) / T * length(t)),
+                  round(as.numeric((as.Date("2023-1-1") - date.begin)) / T * length(t))
+                  )
+names(years.breaks) <- c("2017", "2018", "2019", "2020", "2021", "2022", "2023")
+
+
+plot_medians <- function(col_ind) {
+  folder <- "plot_ts/medians"
+  ylabel <- "Ratings"
+  
+  median.0 <- tot_median.trend[28:370]
+  median.1 <- median.trend[col_ind,]
+  median.df <- data.frame(x=t[28:370], y0=median.0[28:370],   y1=median.1[28:370])
+  title <- rownames(median.trend)[col_ind]
+  
+  p <- ggplot(data=median.df, aes(x = x)) +
+    geom_line(aes(y = y0, color = "market"), linetype = "solid", linewidth = 1) +
+    geom_line(aes(y = y1, color = "1"), linetype = "solid", linewidth = 1) +
+    labs(title = title, x = "t", y = ylabel) +
+    scale_x_continuous(breaks = t[years.breaks], labels = names(years.breaks)) +
+    scale_color_manual(name = "Legend",
+                       values = c("market" = "#73aaff",
+                                  "1" ="#f7809c"),
+                       labels = c("1","market" )) +
+    theme_minimal()
+  
+  filename <- paste(folder, "/", tolower(title), ".png", sep="")
+  ggsave(filename, plot = p, width = 6, height = 4, units = "in")
+  print(p)
+}
+
+for (idx in 1:84) {
+  plot_medians(idx)
+  #Sys.sleep(5)
+}
+```
+
+## Clustering
+```{r}
+#clustering---
+#library(fda.usc)
+set.seed(1234)
+i=sample(1:nrow(rated),1000) #1000 games
+ord_i=order(i)
+rated_sub1=rated[i[ord_i],90:ncol(rated)]
+rated_sub1=rated_sub1[-which(rated_sub1>1200,arr.ind = TRUE)[,1],] 
+
+ff_data=fdata(rated_sub1)
+clus1=kmeans.fd(ff_data,ncl = 5,max.iter = 500)
+
+
+```
+```{r}
+rated_sub1=rated[i[ord_i],90:ncol(rated)]
+rated_sub1=rated_sub1[-which(rated_sub1>50,arr.ind = TRUE)[,1],] 
+
+ff_data=fdata(rated_sub1)
+clus1=kmeans.fd(ff_data,ncl = 5,max.iter = 500)
+
+```
+
+```{r}
+# library(fds)
+# library(fda)
+# library(ftsa)
+# fds_object <- fds(seq(1,369),t(rated_sub))
+# # Assuming 'fds_object' is your converted fds object
+# forecast_result <- farforecast(fds_object, h = 100, var_type = "both", Dmax_value = 5, Pmax_value = 3, level = 95, PI = TRUE)
+```
+
+
+```{r}
+```
+
+<!-- ## Including Plots -->
+
+<!-- You can also embed plots, for example: -->
+
+<!-- ```{r pressure, echo=FALSE} -->
+<!-- plot(pressure) -->
+<!-- ``` -->
+
+<!-- Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot. -->
