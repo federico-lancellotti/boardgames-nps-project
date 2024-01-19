@@ -143,7 +143,8 @@ tot_median.trend=apply(dec.tot$trend, 1, median)
 #tot_median.season=apply(matrix(dec.tot$seasonal,nrow=25033,ncol=370, byrow=TRUE),1,median)
 median.trend=matrix(rep(0,32560),ncol =370)
 rownames(median.trend)=colnames(rated[1:88])
-median.season=median.trend
+median.trend_cat=median.trend
+#median.season=median.trend
 #median is a time*n_categories matrix
 for (i in 5:40) {
   df=rated[rated[,i]==1,89:ncol(rated)]
@@ -163,6 +164,26 @@ for (i in 41:88) {
   }
 median.trend=median.trend[5:nrow(median.trend),]
 saveRDS(median.trend,file="C:/Users/Silvia/Desktop/23-24/NONPAR/project/median_trend.RDS")
+
+for (i in 5:40) {
+  df=rated[rated[,i]==0,89:ncol(rated)]
+  df.dec=decompose(ts(transpose(df),frequency = 52, 
+                      start = c(2016, 42)))
+  median.trend_cat[i,] <- apply(df.dec$trend, 1, median)
+  #median.season[i,] <- apply(as.matrix(df.dec$seasonal,
+                                  #nrow=nrow(df),ncol=370), 1, median)
+  }
+for (i in 41:88) {
+  df=rated[rated[,i]==0,89:ncol(rated)]
+  df.dec=decompose(ts(transpose(df),frequency = 52, 
+                      start = c(2016, 42)))
+  median.trend_cat[i,] <- apply(df.dec$trend, 1, median)
+  #median.season[i,] <- apply(as.matrix(df.dec$seasonal,
+                                  #nrow=nrow(df),ncol=370), 1, median)
+  }
+median.trend_cat=median.trend_cat[5:nrow(median.trend_cat),]
+saveRDS(median.trend_cat,file="C:/Users/Silvia/Desktop/23-24/NONPAR/project/median_trend_cat.RDS")
+
 
 ```
 
@@ -185,23 +206,23 @@ names(years.breaks) <- c("2017", "2018", "2019", "2020", "2021", "2022", "2023")
 
 
 plot_medians <- function(col_ind) {
-  folder <- "plot_ts/medians"
+  folder <- "plot_ts/medians time series"
   ylabel <- "Ratings"
   
-  median.0 <- tot_median.trend[28:370]
+  median.0 <- median.trend_cat[col_ind,]
   median.1 <- median.trend[col_ind,]
   median.df <- data.frame(x=t[28:370], y0=median.0[28:370],   y1=median.1[28:370])
   title <- rownames(median.trend)[col_ind]
   
   p <- ggplot(data=median.df, aes(x = x)) +
-    geom_line(aes(y = y0, color = "market"), linetype = "solid", linewidth = 1) +
-    geom_line(aes(y = y1, color = "1"), linetype = "solid", linewidth = 1) +
+    geom_line(aes(y = y0, color = "0"), linetype = "solid", linewidth = 0.5) +
+    geom_line(aes(y = y1, color = "1"), linetype = "solid", linewidth = 0.5) +
     labs(title = title, x = "t", y = ylabel) +
     scale_x_continuous(breaks = t[years.breaks], labels = names(years.breaks)) +
     scale_color_manual(name = "Legend",
-                       values = c("market" = "#73aaff",
+                       values = c("0" = "#73aaff",
                                   "1" ="#f7809c"),
-                       labels = c("1","market" )) +
+                       labels = c("0","1" )) +
     theme_minimal()
   
   filename <- paste(folder, "/", tolower(title), ".png", sep="")
