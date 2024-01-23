@@ -275,9 +275,13 @@ permuted_logrank_test = function(category, time, status, iter = 1000) {
   p_value = sum(T_stat >= T0) / iter
   return(list(TestStatistic = T0, PValue = p_value))
 }
-result = permuted_logrank_test(data$Economic_fact, data$time, data$status, iter = 1000)
-cat("Test Statistic:", result$TestStatistic, "\n")
-cat("P-value:", result$PValue, "\n")
+for (i in 105:188) {
+  covariate=data[,i]
+  print(colnames(data)[i])
+  result = permuted_logrank_test(covariate, data$time, data$status, iter = 1000)
+  cat("Test Statistic:", result$TestStatistic, "\n")
+  cat("P-value:", result$PValue, "\n") 
+}
 ```
 
 
@@ -300,6 +304,13 @@ plot(survfit(cox.year, data=data),
      xlab='Time [days]', ylab='Survival Probability',
      main='Baseline estimated survival probability')
 grid()
+
+
+mfit <- coxph(Surv(time, status) ~ pspline(Year, df=2), data=data)
+mfit
+plot.new()
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+abline(h=0)
 ```
 
 
@@ -317,6 +328,14 @@ plot(survfit(cox.playingtime, data=data),
      xlab='Time [days]', ylab='Survival Probability',
      main='Baseline estimated survival probability')
 grid()
+
+
+
+mfit <- coxph(Surv(time, status) ~ pspline(playingtime, df=2), data=data)
+mfit
+plot.new()
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+abline(h=0)
 ```
 
 
@@ -334,14 +353,22 @@ plot(survfit(cox.max_players, data=data),
      xlab='Time [days]', ylab='Survival Probability',
      main='Baseline estimated survival probability')
 grid()
+
+
+
+
+mfit <- coxph(Surv(time, status) ~ pspline(maxplayers, df=2), data=data)
+mfit
+plot.new()
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+abline(h=0)
 ```
 
 
 
 ### 4.A) Weight
-
+#### linear:
 ```{r}
-#4.A)Weight:
 cox.weight = coxph(Surv(time, status) ~ weight, data = data)
 cox.weight 
 summary(cox.weight)
@@ -352,34 +379,182 @@ plot(survfit(cox.weight, data=data),
      xlab='Time [days]', ylab='Survival Probability',
      main='Baseline estimated survival probability')
 grid()
+```
 
-#4.2.A)Weight: !!!!!!!
-weight_quadratic = poly(data$weight, degree = 2) #no raw
-cox.weight = coxph(Surv(time, status) ~ weight_quadratic, data = data)
-cox.weight
-summary(cox.weight)
+
+```{r}
+# #4.2.A)Weight:
+# weight_quadratic = poly(data$weight, degree = 2, raw=FALSE) #no raw
+# data$weight <- as.numeric(data$weight)
+# sum(is.na(data$weight))
+# cox.weight = coxph(Surv(time, status) ~ poly(scale(data$weight), degree = 2, raw=FALSE), data = data)
+# cox.weight
+# summary(cox.weight)
+# 
+# #Plot (baseline survival function S0(t)):
+# plot(survfit(cox.weight, data=data),
+#      col="darkorange2", lwd=2, lty=1,
+#      xlab='Time [days]', ylab='Survival Probability',
+#      main='Baseline estimated survival probability')
+# grid()
+```
+
+#### non linear (psline):
+
+```{r}
+#splines penalizzate 
+##df=2:
+mfit <- coxph(Surv(time, status) ~ pspline(weight, df=2), data=data)
+mfit
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+
+ptemp=termplot(mfit, se=TRUE, plot=FALSE)
+attributes(ptemp)
+ptemp$weight[1:4,]
+
+weightterm=ptemp$weight
+center=with(weightterm, y[x==2])
+ytemp=weightterm$y + outer(weightterm$se, c(0, -1, 1), '*')
+matplot(weightterm$x, exp(ytemp - center), type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+#matplot(weightterm$x, exp(ytemp - center), log='y', type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+
+#plotting smooth terms:
+mfit <- coxph(Surv(time, status) ~ pspline(weight, df=3), data=data)
+mfit
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+plot(survfit(mfit, data=data), col="darkorange2", lwd=2, lty=1, xlab='Time [days]', ylab='Survival Probability', main='Baseline estimated survival probability')
+
+ptemp=termplot(mfit, se=TRUE, plot=FALSE)
+attributes(ptemp)
+ptemp$weight[1:4,]
+
+weightterm=ptemp$weight
+center=with(weightterm, y[x==2])
+ytemp=weightterm$y + outer(weightterm$se, c(0, -1, 1), '*')
+matplot(weightterm$x, exp(ytemp - center), type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+#matplot(weightterm$x, exp(ytemp - center), log='y', type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+
+
+##df=3:
+mfit <- coxph(Surv(time, status) ~ pspline(weight, df=3), data=data)
+mfit
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+
+ptemp=termplot(mfit, se=TRUE, plot=FALSE)
+attributes(ptemp)
+ptemp$weight[1:4,]
+
+weightterm=ptemp$weight
+center=with(weightterm, y[x==2])
+ytemp=weightterm$y + outer(weightterm$se, c(0, -1, 1), '*')
+matplot(weightterm$x, exp(ytemp - center), type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+#matplot(weightterm$x, exp(ytemp - center), log='y', type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+
+#plotting smooth terms:
+mfit <- coxph(Surv(time, status) ~ pspline(weight, df=3), data=data)
+mfit
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+plot(survfit(mfit, data=data), col="darkorange2", lwd=2, lty=1, xlab='Time [days]', ylab='Survival Probability', main='Baseline estimated survival probability')
+
+ptemp=termplot(mfit, se=TRUE, plot=FALSE)
+attributes(ptemp)
+ptemp$weight[1:4,]
+
+weightterm=ptemp$weight
+center=with(weightterm, y[x==2])
+ytemp=weightterm$y + outer(weightterm$se, c(0, -1, 1), '*')
+matplot(weightterm$x, exp(ytemp - center), type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+#matplot(weightterm$x, exp(ytemp - center), log='y', type='l', lty=c(1,2,2), col=1, xlab="weight", ylab="Relative death rate")
+```
+
+#### non linear (altre):
+
+```{r}
+#bslines, natural splines, restricted cubic splines
+library(splines)
+library(rms)
+cox_weight=coxph(Surv(time, status) ~ bs(weight, df=3), data = data)
+# cox_weight=coxph(Surv(time, status) ~ ns(weight, df=3), data = data)
+# cox_weight=coxph(Surv(time, status) ~ rcs(weight, df=5), data = data)
+
+
+
+cox_weight
+summary(cox_weight)
+#Plot (baseline survival function S0(t)):
+plot(survfit(cox_weight, data=data),
+     col="darkorange2", lwd=2, lty=1,
+     xlab='Time [days]', ylab='Survival Probability',
+     main='Baseline estimated survival probability')
+grid()
+termplot(cox_weight, term=1, se=TRUE, col.term=1, col.se=1)
+
+
+
+#bslines, natural splines, restricted cubic splines
+# cox_weight=coxph(Surv(time, status) ~ bs(weight, df=3), data = data)
+ cox_weight=coxph(Surv(time, status) ~ ns(weight, df=3), data = data)
+# cox_weight=coxph(Surv(time, status) ~ rcs(weight, df=5), data = data)
+
+
+
+cox_weight
+summary(cox_weight)
+#Plot (baseline survival function S0(t)):
+plot(survfit(cox_weight, data=data),
+     col="darkorange2", lwd=2, lty=1,
+     xlab='Time [days]', ylab='Survival Probability',
+     main='Baseline estimated survival probability')
+grid()
+termplot(cox_weight, term=1, se=TRUE, col.term=1, col.se=1)
+
+
+
+#bslines, natural splines, restricted cubic splines
+# cox_weight=coxph(Surv(time, status) ~ bs(weight, df=3), data = data)
+# cox_weight=coxph(Surv(time, status) ~ ns(weight, df=3), data = data)
+ cox_weight=coxph(Surv(time, status) ~ rcs(weight, df=5), data = data)
+
+
+
+cox_weight
+summary(cox_weight)
+#Plot (baseline survival function S0(t)):
+plot(survfit(cox_weight, data=data),
+     col="darkorange2", lwd=2, lty=1,
+     xlab='Time [days]', ylab='Survival Probability',
+     main='Baseline estimated survival probability')
+grid()
+termplot(cox_weight, term=1, se=TRUE, col.term=1, col.se=1)
+```
+
+
+
+
+### 5.A)
+```{r}
+#3.A)DimPublisher:
+cox.dimpublisher <- coxph(Surv(time, status) ~ dimpublisher, data = data)
+cox.dimpublisher
+summary(cox.dimpublisher)
 
 #Plot (baseline survival function S0(t)):
-plot(survfit(cox.weight, data=data),
+plot(survfit(cox.dimpublisher, data=data), 
      col="darkorange2", lwd=2, lty=1,
      xlab='Time [days]', ylab='Survival Probability',
      main='Baseline estimated survival probability')
 grid()
 
-# ##4.3.A)Weight:
-# cox_weight=coxph(Surv(time, status) ~ bs(weight, df=8), data = data)
-# summary(cox_weight)
-# #Plot (baseline survival function S0(t)):
-# plot(survfit(cox_weight, data=data), 
-#      col="darkorange2", lwd=2, lty=1,
-#      xlab='Time [days]', ylab='Survival Probability',
-#      main='Baseline estimated survival probability')
-# grid()
-# 
-# # Per residui normali:
-# # #Ftest:
-# # anova(cox.weight,cox_weight, test = "F")  #pval < 2.2e-16 ***
+
+
+
+mfit <- coxph(Surv(time, status) ~ pspline(dimpublisher, df=2), data=data)
+mfit
+plot.new()
+termplot(mfit, term=1, se=TRUE, col.term=1, col.se=1)
+abline(h=0)
 ```
+
 
 
 
@@ -407,9 +582,56 @@ legend('topright', c("Max PLayers = 2", "Max PLayers = 4", "Max PLayers = 6"),
 
 
 
+##b) 2.B) Economic
+```{r}
+#1.B)MaxPlayers (divide into M groups the variable max_players):
+cox.economic <- coxph(Surv(time, status) ~ Economic_fact, data = data)
+fit.economic=survfit(cox.economic, newdata = data)
+fit.economic
+summary(fit.economic)
+ 
+#Plot:
+plot(fit.economic, conf.int=T,
+    col=c("dodgerblue2","darkmagenta"), lwd=2, lty=1,
+    xlab='Time [days]', ylab='Survival Probability',
+    main='Adjusted Survival Probability Plot')
+grid()
+legend('topright', c("Non-Economic", "Economic"),
+      lty=c(1,1), lwd=c(2,2), col=c("dodgerblue2","darkmagenta"))
+```
+
+
 
 
 ## b) Multivariate
+
+###All categorical variables
+
+```{r}
+# columns_of_interest <- colnames(data)[105:188]
+# plot_list=list()
+# for (col in columns_of_interest) {
+#   covariate=data[,col]
+#   fit = coxph(Surv(time, status) ~ covariate, data = data)
+#   
+#   # Plot
+#   plot=plot(survfit(fit, data=data),col="darkorange2", lwd=2, lty=1,
+#              xlab='Time [days]', ylab='Survival Probability',
+#              main=paste('Baseline estimated survival probability for', col))
+#   plot_list[[col]] = plot
+# }
+# 
+# length(plot_list) #84
+# 
+# pdf("survival_plot_for_all_categories.pdf")
+# for (i in seq_along(plot_list)) {
+#   print(plot_list[[i]])
+# }
+# dev.off()
+# file.rename("survival_plot_for_all_categories.pdf", "C:/Users/Utente/Desktop/NPS/Projects/git_clone/boardgames-nps-project/survival/cox_1_cat.pdf")
+```
+
+
 
 ### All numerical variables
 ```{r}
@@ -431,6 +653,71 @@ plot(survfit(mod.cox, data=data),
      xlab='Time [days]', ylab='Survival Probability',
      main='Baseline estimated survival probability')
 grid()
+
+
+
+# glimpse(data) #check if categorical variables are considered factors --> ok!!!!
+# # #In case they are not:
+# # lung$sex <- ifelse(lung$sex==1,'Male','Female')
+# # lung$sex <- as.factor(lung$sex)
+
+mod.cox=coxph(Surv(time, status) ~ playingtime + weight + minage + dimpublisher + Year , data = data) 
+summary(mod.cox)
+
+#Plots:
+#1)Hazard ratios:
+#ggforest(mod.cox, data=data) #crystal clear ahahahah
+
+#2)Baseline survival function:
+plot(survfit(mod.cox, data=data), 
+     col="darkorange2", lwd=2, lty=1,
+     xlab='Time [days]', ylab='Survival Probability',
+     main='Baseline estimated survival probability')
+grid()
+
+
+
+# glimpse(data) #check if categorical variables are considered factors --> ok!!!!
+# # #In case they are not:
+# # lung$sex <- ifelse(lung$sex==1,'Male','Female')
+# # lung$sex <- as.factor(lung$sex)
+
+mod.cox=coxph(Surv(time, status) ~ pspline(playingtime, df=2) + pspline(weight, df=2) + pspline(minage, df=2) + pspline(dimpublisher, df=2) + pspline(Year, df=2) , data = data) 
+summary(mod.cox)
+
+#Plots:
+#1)Hazard ratios:
+#ggforest(mod.cox, data=data) #crystal clear ahahahah
+
+#2)Baseline survival function:
+plot(survfit(mod.cox, data=data), 
+     col="darkorange2", lwd=2, lty=1,
+     xlab='Time [days]', ylab='Survival Probability',
+     main='Baseline estimated survival probability')
+grid()
+
+
+
+
+
+# # glimpse(data) #check if categorical variables are considered factors --> ok!!!!
+# # # #In case they are not:
+# # # lung$sex <- ifelse(lung$sex==1,'Male','Female')
+# # # lung$sex <- as.factor(lung$sex)
+# 
+# mod.cox=coxph(Surv(time, status) ~ pspline(playingtime, df=2) + pspline(weight, df=2) + pspline(minage, df=2) + pspline(dimpublisher, df=2) + pspline(Year, df=2) + pspline(dimpublisher, df=2)*pspline(playingtime, df=2) + pspline(dimpublisher, df=2)*pspline(weight, df=2) + pspline(dimpublisher, df=2)*pspline(minage, df=2) + pspline(dimpublisher, df=2)*pspline(Year, df=2) , data = data) 
+# summary(mod.cox)
+# 
+# #Plots:
+# #1)Hazard ratios:
+# #ggforest(mod.cox, data=data) #crystal clear ahahahah
+# 
+# #2)Baseline survival function:
+# plot(survfit(mod.cox, data=data), 
+#      col="darkorange2", lwd=2, lty=1,
+#      xlab='Time [days]', ylab='Survival Probability',
+#      main='Baseline estimated survival probability')
+# grid()
 ```
 
  
