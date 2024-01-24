@@ -114,10 +114,13 @@ if (length(err) > 0) {
 data.smoothed <- list(Xsp0=Xsp0, Xsp1=Xsp1, Xsp2=Xsp2, err_idx=err)
 saveRDS(data.smoothed, file="../data-historical/smoothed-data.RDS")
 
+
+# Load smoothed data ----------------------------------------------------------
 data.smoothed <- readRDS("../data-historical/smoothed-data.RDS")
 Xsp0 <- data.smoothed$Xsp0
 Xsp1 <- data.smoothed$Xsp1
 Xsp2 <- data.smoothed$Xsp2
+err <- data.smoothed$err_idx
 
 ### Problematic curves ----
 for (i in 1:length(err)) {
@@ -163,7 +166,7 @@ outliergram(Xsp2.fd)
 sample_rows <- sample(1:Xsp0.fd$N, 100)
 sample_rows <- 672
 sample_rows <- 13
-par(mfrow=c(1,1))
+par(mfrow=c(1,3))
 plot(Xsp0.fd[sample_rows], lty=1, lwd=2,
      cex=2, xlab="Time", ylab="No. of ratings")
 plot(Xsp1.fd[sample_rows],  lty=1, lwd=2,
@@ -185,9 +188,8 @@ plotFANOVA(x=Xsp0[,1:n], group.label=as.character(data[1:n,]$Dice), int=c(0, 1),
 #                                       own.cross.prod.mat = own.cross.prod.mat))
 # summary(fanova)
 
-fanova <- fanova.tests(Xsp0, data$Dice, test = "GPF")
+fanova <- fanova.tests(Xsp0, data$Economic, test = "GPF")
 summary(fanova)
-
 
 ## Permutational FANOVA ----
 B <- 100
@@ -367,4 +369,62 @@ for (cat in signif_cat.deriv) {
   idx <- catList.index + cat
   plot_medians(idx, 1)
   #Sys.sleep(5)
+}
+
+
+# fRegress -------------------------------------------------------------------
+y.fd <- Data2fd(t, Xsp1)
+x1.fd <- as.numeric(data$Economic)
+x2.fd <- as.numeric(data$Negotiation)
+
+fmodel <- fRegress(y.fd ~ x1.fd + x2.fd)
+
+plot(fmodel$betaestlist$const$fd)
+plot(fmodel$betaestlist$x1.fd$fd)
+plot(fmodel$betaestlist$x2.fd$fd)
+
+
+# Multi-way ANOVA with Modified Band Depth ------------------------------------
+modified_band_depth <- MBD(Data = Xsp1.fd)
+model.anova <- aov(modified_band_depth ~ Economic + Negotiation +
+                     Card.Game + Fantasy + Medieval +
+                     Territory.Building + Civilization +
+                     Children.s.Game + City.Building + Exploration + Travel +
+                     Farming + Mythology + Bluffing + Science.Fiction +
+                     Collectible.Components + Dice + Fighting +
+                     Miniatures + Racing +
+                     Wargame + Space.Exploration + Renaissance +
+                     Humor + Electronic + Horror + 
+                     Deduction + 
+                     Movies...TV...Radio.theme + Memory + Puzzle +
+                     Trivia + Industry...Manufacturing +
+                     Animals +
+                     Sports +
+                     Number + Spies.Secret.Agents + Medical + 
+                     Post.Napoleonic + Environmental
+                   , data=data)
+summary(model.anova)
+length(model.anova$coefficients) - 1
+
+signif_cat <- names(model.anova$coefficients)[-1]
+
+
+anova.interactions <- function(category) {
+  category.ind <- grep(category, signif_cat)
+  new_signif_cat <- signif_cat[-category.ind]
+  
+  interactions <- paste("modified_band_depth", category, sep=" ~ ")
+  
+  for (other_cat in new_signif_cat) {
+    new_interaction <- paste(category, other_cat, sep=":")
+    interactions <- paste(interactions, other_cat, sep=" + ")
+    interactions <- paste(interactions, new_interaction, sep=" + ")
+  }
+  
+  model <- aov(as.formula(interactions), data=data)
+}
+anova.interactions("Economic")
+
+for (cat in signif_cat) {
+  print(summary(anova.interactions(cat)))
 }
