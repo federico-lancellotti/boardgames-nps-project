@@ -407,6 +407,7 @@ summary(model.anova)
 length(model.anova$coefficients) - 1
 
 signif_cat <- names(model.anova$coefficients)[-1]
+sum(names(which(fanova.pvals.veloc < 0.01)) %in% signif_cat)
 
 
 anova.interactions <- function(category) {
@@ -428,3 +429,5 @@ anova.interactions("Economic")
 for (cat in signif_cat) {
   print(summary(anova.interactions(cat)))
 }
+
+
