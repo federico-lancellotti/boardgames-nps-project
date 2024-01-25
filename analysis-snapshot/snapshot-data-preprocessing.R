@@ -7,10 +7,10 @@ boardgames <- tidytuesdayR::tt_load('2022-01-25')
 ratings <- boardgames$ratings
 details <- boardgames$details
 
-historical.usersRated <- read.csv("./data-historical/usersRated_preproc.csv")
+historical.usersRated <- read.csv("../data-historical/usersRated_preproc.csv")
 
-ratings.cols = c(1:6, 8)
-details.cols = c(2, 6:8, 11, 19, 20)
+ratings.cols = c(1:3, 5:6, 8)
+details.cols = c(2, 5:8, 11, 19, 20)
 data <- merge(ratings[, ratings.cols], details[, details.cols], by="id")
 
 historical.cols = c(1, 4:88)
@@ -44,8 +44,10 @@ store_weights <- function(df, start, finish) {
   return(df)
 }
 
-Weights <- store_weights(Weights, 1, 10000)
-Weights <- store_weights(Weights, 10001, 20000)
+Weights <- store_weights(Weights, 1, 5000)
+Weights <- store_weights(Weights, 5001, 10000)
+Weights <- store_weights(Weights, 10001, 15000)
+Weights <- store_weights(Weights, 15001, 20000)
 Weights <- store_weights(Weights, 20001, nrow(data))
 
 sum(is.na(Weights$weight))

@@ -4,6 +4,16 @@ library(mgcv)
 # library(rgl)
 library(splines)
 library(pbapply)
+library(progress)
+
+library(robustbase)
+library(psych)
+library(MASS)
+library(ellipse)
+library(here)
+library(DescTools)
+library(knitr)
+library(RobStatTM)
 
 
 # Set global parameters -------------------------------------------------------
@@ -16,10 +26,24 @@ data <- read.csv("../data-snapshot/boardgames-weights-publishers.csv")
 data[!complete.cases(data), ]
 
 
+# Publishing year -------------------------------------------------------------
+boardgames <- tidytuesdayR::tt_load('2022-01-25')
+details <- boardgames$details
+
+merged_df <- merge(data, details[,c(2,5)], by = "id", all.x = TRUE)
+merged_df <- merged_df[, c(1:3, ncol(merged_df), 5:(ncol(merged_df)-1))]
+data <- merged_df
+
+rm(merged_df)
+rm(details)
+rm(boardgames)
+
+
 # Exploration -----------------------------------------------------------------
 with(data, scatterplotMatrix(data.frame(log(users_rated), average, weight)))
 
 hist(log(data$users_rated))
+hist(data$yearpublished)
 hist(data$average)
 hist(data$weight)
 hist(data$minplayers)
@@ -36,7 +60,7 @@ catList.index <- which(colnames(data) == "Category") + 1
 covariates.categories <- colnames(data[,catList.index:ncol(data)])
 # covariates.categories <- paste0("s(", covariates.categories, ", bs='re')")
 
-covariates.others <- c("average", "minplayers", "weight", "log(playingtime+1)", "minage", "dimpublisher", "avgpublisher")
+covariates.others <- c("minplayers", "weight", "log(playingtime+1)", "minage", "dimpublisher", "avgpublisher", "yearpublished")
 covariates.others <- paste0("s(", covariates.others, ", bs='tp', m=3)")
 
 covariates <- paste(c(covariates.others, covariates.categories), collapse=" + ")
@@ -45,10 +69,14 @@ target <- "log(users_rated + 1)"
 formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
 
 model <- gam(formula, data=data)
-summary(model)
+model.summary <- summary(model)
+model.summary
 
 
 # Variable selection ----------------------------------------------------------
+covariates.categories.toremove <- names(which(model.summary$p.pv > 0.05))
+covariates.categories.toremove
+
 covariates.categories.toremove <- c("Travel", "Mythology", "Print...Play",
                                     "Maze", "Racing", "American.West", 
                                     "Space.Exploration", "Novel.based",
@@ -57,6 +85,7 @@ covariates.categories.toremove <- c("Travel", "Mythology", "Print...Play",
                                     "Music", "Pike.and.Shot", "Vietnam.War",    
                                     "Korean.War", "Expansion.for.Base.game", 
                                     "Fan.Expansion")
+
 covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
                                          covariates.categories.toremove)
 covariates.reduced <- paste(c(covariates.others, covariates.categories.reduced), collapse=" + ")
@@ -71,6 +100,8 @@ T0
 
 T_H0 <- numeric(B)
 
+pb <- progress_bar$new(format = "  processing [:bar] :percent eta: :eta", total = B, clear = FALSE)
+set.seed(1)
 for(perm in 1:B){
   permutation <- sample(nrow(data))
   
@@ -79,6 +110,8 @@ for(perm in 1:B){
   
   formula.new <-  as.formula(paste(c("Y.perm.H0", "~", covariates), collapse=" "))
   T_H0[perm] <- sum(abs(summary(gam(formula.new, data=data))$p.t[covariates.categories.toremove]))
+
+  pb$tick()
 }
 
 sum(T_H0>=T0)/B
@@ -88,7 +121,7 @@ sum(T_H0>=T0)/B
 covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
                                          covariates.categories.toremove)
 
-covariates.others <- c("average", "maxplayers", "weight", "log(playingtime+1)", "minage", "year", "dimpublisher", "avgpublisher")
+covariates.others <- c("average", "maxplayers", "weight", "log(playingtime+1)", "minage", "dimpublisher", "avgpublisher", "yearpublished")
 covariates.others <- paste0("s(", covariates.others, ", bs='cr')")
 
 covariates.interactions <- c("I(year*weight)", "I(minplayers*log(playingtime+1))", "I(weight*log(playingtime+1))")
@@ -104,4 +137,59 @@ summary(model)  # R-sq.(adj) =   0.54   Deviance explained = 54.3%
                 # GCV = 0.97871  Scale est. = 0.97206   n = 21235
 
 plot(model)
+
+
+# Outliers  -------------------------------------------------------------------
+covariates.MCD <- c("maxplayers", "playingtime", "yearpublished")
+covariates.MCD.ind <- which(colnames(data) %in% covariates.MCD)
+covariates.MCD.ind
+
+fit_MCD <- covMcd(x = data[,covariates.MCD.ind], alpha = .95, nsamp = 1000)
+fit_MCD
+
+ind_out_obs <- setdiff(1:nrow(data), fit_MCD$best)
+length(ind_out_obs)
+
+# plot(fit_MCD,classic=TRUE)
+
+data.out <- data[-ind_out_obs,]
+range(data.out$yearpublished)
+range(data.out$playingtime)
+range(data.out$maxplayers)
+
+
+
+## Robust model ----
+covariates.categories <- colnames(data[,catList.index:ncol(data)])
+
+covariates.others <- c("maxplayers", "weight", "log(playingtime+1)", "minage", "dimpublisher", "yearpublished")
+covariates.others <- paste0("s(", covariates.others, ", bs='tp', m=3)")
+
+covariates <- paste(c(covariates.others, covariates.categories), collapse=" + ")
+
+target <- "log(users_rated + 1)"
+formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
+
+model <- gam(formula, data=data.out)
+model.summary <- summary(model)
+model.summary
+
+
+## Robust model, reduced ----
+covariates.categories.toremove <- names(which(model.summary$p.pv > 0.05))
+covariates.categories.toremove
+covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
+                                         covariates.categories.toremove)
+
+covariates <- paste(c(covariates.others, covariates.categories.reduced), collapse=" + ")
+target <- "log(users_rated + 1)"
+formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
+
+model.reduced <- gam(formula, data=data.out)
+summary(model.reduced)
+
+par(mfrow = c(1,2))
+plot(model.reduced)
+
+
 
