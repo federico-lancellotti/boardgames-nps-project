@@ -1101,6 +1101,35 @@ write.csv(survival_1, file = "survival_1month.csv", row.names = FALSE)
 # count(which(data[,"X2016.10.12"]==0))
 
 
+#%%%%%%%%%%%%%%%%
+# Outliers:
+survival_1month <- read.csv("C:/Users/Utente/Desktop/NPS/Projects/git_clone/boardgames-nps-project/survival/survival_1month.csv")
+View(survival_1month)
+covariates.MCD <- c("maxplayers", "playingtime", "Year")
+covariates.MCD.ind <- which(colnames(survival_1month) %in% covariates.MCD)
+covariates.MCD.ind
+
+fit_MCD <- covMcd(x = survival_1month[,covariates.MCD.ind], alpha = .95, nsamp = 1000)
+fit_MCD
+
+ind_out_obs <- setdiff(1:nrow(survival_1month), fit_MCD$best)
+length(ind_out_obs)
+
+# plot(fit_MCD,classic=TRUE)
+
+data.out <- survival_1month[-ind_out_obs,]
+range(data.out$Year)
+range(data.out$playingtime)
+range(data.out$maxplayers)
+
+write.csv(survival_1month, file = "survival_final.csv", row.names = FALSE)
+
+#%%%%%%%%%%%%%%%%
+
+
+
+
+
 
 
 # 1 MONTH (ratings <=2):
