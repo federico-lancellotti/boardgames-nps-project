@@ -193,3 +193,133 @@ plot(model.reduced)
 
 
 
+
+
+#------------------------------------------------------------------------------
+data.out$log_users=log(data.out$users_rated + 1)
+data.out$log_pltime=log(data.out$playingtime + 1)
+
+covariates.others <- c("log_pltime", "minage", "yearpublished", "dimpublisher", "maxplayers", "weight")
+covariates.others <- paste0("s(", covariates.others, ", bs='tp', m=3)")
+
+covariates <- paste(c(covariates.others, covariates.categories.reduced), collapse=" + ")
+target <- "log_users"
+formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
+
+model.reduced <- gam(formula, data=data.out)
+summary(model.reduced)
+
+
+# #Plot (all):
+# library(gratia)
+# draw(model.reduced)
+
+
+#Plot (all):
+library(gratia)
+draw(model.reduced, residuas=TRUE)
+
+
+# log_pltime, minage, yearpublished, dimpublisher, maxplayers, weight
+
+
+#1) log_pltime:
+p_obj=plot(model.reduced, residuals = TRUE)
+p_obj1=p_obj[[1]] #prende solo log_pltime
+sm_df=as.data.frame(p_obj1[c("x", "se", "fit")])
+data_df=as.data.frame(p_obj1[c("raw", "p.resid")])
+
+## plot
+ggplot(sm_df, aes(x = x, y = fit)) +
+  geom_rug(data = data_df, mapping = aes(x = raw, y = NULL), sides = "b") +
+  #geom_point(data = data_df, mapping = aes(x = raw, y = p.resid, color = "salmon")) +  # Aggiunto color = "skyblue" --> viene comunque salmone
+  geom_ribbon(aes(ymin = fit - se, ymax = fit + se, y = NULL), alpha = 0.3) +
+  geom_line() +
+  labs(x = "log(PlayingTime+1)", y = "Partial effect") +
+  theme(legend.position = "none")
+
+
+#2) minage:
+# p_obj=plot(model, residuals = TRUE)
+p_obj2=p_obj[[2]] #prende solo minage
+sm_df=as.data.frame(p_obj2[c("x", "se", "fit")])
+data_df=as.data.frame(p_obj2[c("raw", "p.resid")])
+
+## plot
+ggplot(sm_df, aes(x = x, y = fit)) +
+  geom_rug(data = data_df, mapping = aes(x = raw, y = NULL), sides = "b") +
+  #geom_point(data = data_df, mapping = aes(x = raw, y = p.resid, color = "salmon")) +  
+  geom_ribbon(aes(ymin = fit - se, ymax = fit + se, y = NULL), alpha = 0.3) +
+  geom_line() +
+  labs(x = "Min Age", y = "Partial effect") +
+  theme(legend.position = "none")
+
+
+#3) yearpublished:
+# p_obj=plot(model, residuals = TRUE)
+p_obj3=p_obj[[3]] #prende solo yearpublished
+sm_df=as.data.frame(p_obj3[c("x", "se", "fit")])
+data_df=as.data.frame(p_obj3[c("raw", "p.resid")])
+
+## plot
+ggplot(sm_df, aes(x = x, y = fit)) +
+  geom_rug(data = data_df, mapping = aes(x = raw, y = NULL), sides = "b") +
+  #geom_point(data = data_df, mapping = aes(x = raw, y = p.resid, color = "salmon")) +  
+  geom_ribbon(aes(ymin = fit - se, ymax = fit + se, y = NULL), alpha = 0.3) +
+  geom_line() +
+  labs(x = "Year Published", y = "Partial effect") +
+  theme(legend.position = "none")
+
+
+#4) dimpublisher:
+# p_obj=plot(model, residuals = TRUE)
+p_obj4=p_obj[[4]] #prende solo dimpublisher
+sm_df=as.data.frame(p_obj4[c("x", "se", "fit")])
+data_df=as.data.frame(p_obj4[c("raw", "p.resid")])
+
+## plot
+ggplot(sm_df, aes(x = x, y = fit)) +
+  geom_rug(data = data_df, mapping = aes(x = raw, y = NULL), sides = "b") +
+  #geom_point(data = data_df, mapping = aes(x = raw, y = p.resid, color = "salmon")) +  
+  geom_ribbon(aes(ymin = fit - se, ymax = fit + se, y = NULL), alpha = 0.3) +
+  geom_line() +
+  labs(x = "Dim Publisher" , y = "Partial effect") +
+  theme(legend.position = "none")
+
+
+#5) maxplayers:
+# p_obj=plot(model, residuals = TRUE)
+p_obj5=p_obj[[5]] #prende solo maxplayers
+sm_df=as.data.frame(p_obj5[c("x", "se", "fit")])
+data_df=as.data.frame(p_obj5[c("raw", "p.resid")])
+
+## plot
+ggplot(sm_df, aes(x = x, y = fit)) +
+  geom_rug(data = data_df, mapping = aes(x = raw, y = NULL), sides = "b") +
+  #geom_point(data = data_df, mapping = aes(x = raw, y = p.resid, color = "salmon")) +  
+  geom_ribbon(aes(ymin = fit - se, ymax = fit + se, y = NULL), alpha = 0.3) +
+  geom_line() +
+  labs(x = "Max Players" , y = "Partial effect") +
+  theme(legend.position = "none")
+
+
+#6) weight:
+# p_obj=plot(model, residuals = TRUE)
+p_obj6=p_obj[[6]] #prende solo weight
+sm_df=as.data.frame(p_obj6[c("x", "se", "fit")])
+data_df=as.data.frame(p_obj6[c("raw", "p.resid")])
+
+## plot
+ggplot(sm_df, aes(x = x, y = fit)) +
+  geom_rug(data = data_df, mapping = aes(x = raw, y = NULL), sides = "b") +
+  #geom_point(data = data_df, mapping = aes(x = raw, y = p.resid, color = "salmon")) +  
+  geom_ribbon(aes(ymin = fit - se, ymax = fit + se, y = NULL), alpha = 0.3) +
+  geom_line() +
+  labs(x = "Weight" , y = "Partial effect") +
+  theme(legend.position = "none")
+
+
+
+
+
+
