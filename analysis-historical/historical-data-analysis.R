@@ -188,7 +188,7 @@ plotFANOVA(x=Xsp0[,1:n], group.label=as.character(data[1:n,]$Dice), int=c(0, 1),
 #                                       own.cross.prod.mat = own.cross.prod.mat))
 # summary(fanova)
 
-fanova <- fanova.tests(Xsp0, data$Economic, test = "GPF")
+fanova <- fanova.tests(Xsp0, data$Wargame, test = "GPF")
 summary(fanova)
 
 ## Permutational FANOVA ----
@@ -385,8 +385,9 @@ plot(fmodel$betaestlist$x2.fd$fd)
 
 
 # Multi-way ANOVA with Modified Band Depth ------------------------------------
-modified_band_depth <- MBD(Data = Xsp1.fd)
-model.anova <- aov(modified_band_depth ~ Economic + Negotiation +
+modified_band_depth <- MBD(Data = Xsp0.fd)
+modified_epigraph_index <- MEI(Data = Xsp1.fd)
+model.anova <- lm(modified_epigraph_index ~ Economic + Negotiation +
                      Card.Game + Fantasy + Medieval +
                      Territory.Building + Civilization +
                      Children.s.Game + City.Building + Exploration + Travel +
@@ -429,5 +430,7 @@ anova.interactions("Economic")
 for (cat in signif_cat) {
   print(summary(anova.interactions(cat)))
 }
+
+
 
 
