@@ -181,9 +181,21 @@ covariates.categories.toremove
 covariates.categories.reduced <- setdiff(colnames(data[,catList.index:ncol(data)]),
                                          covariates.categories.toremove)
 
-covariates <- paste(c(covariates.others, covariates.categories.reduced), collapse=" + ")
+covariates.interactions <- c("I(maxplayers*log(playingtime+1))", "I(weight*log(playingtime+1))", 
+                             "I(weight*dimpublisher)", "I(dimpublisher*log(playingtime+1))")
+covariates.interactions <- paste0("s(", covariates.interactions, ", bs='cr')")
+
+covariates <- paste(c(covariates.others, covariates.interactions, covariates.categories.reduced), collapse=" + ")
+
+# covariates <- paste(c(covariates.others, covariates.categories.reduced), collapse=" + ")
 target <- "log(users_rated + 1)"
 formula <- as.formula(paste(c(target, "~", covariates), collapse=" "))
+
+data.out.std <- data.out
+data.out.std$dimpublisher <- scale(data.out.std$dimpublisher)
+data.out.std$playingtime <- scale(data.out.std$playingtime)
+data.out.std$maxplayers <- scale(data.out.std$maxplayers)
+data.out.std$yearpublished <- scale(data.out.std$yearpublished)
 
 model.reduced <- gam(formula, data=data.out)
 summary(model.reduced)
