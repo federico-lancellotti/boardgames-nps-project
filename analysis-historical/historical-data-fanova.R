@@ -156,7 +156,7 @@ B <- 1000
 
 #### On the derivative ----
 ### first round
-model1.fanova.perm <- fanova.GPF.perm(Xsp1, groups, B)
+model1.fanova.perm <- fanova.GPF.perm(Xsp1, groups, 200)
 pvals.1 <- model1.fanova.perm$pvalues
 good_categories.1 <- names(which(pvals.1 <= alpha))
 good_categories.1.ind <- which(colnames(groups) %in% good_categories.1)
@@ -192,7 +192,7 @@ good_categories.1.ind <- which(colnames(groups) %in% good_categories.1)
 
 #### On the function ----
 ### first round
-model0.fanova.perm <- fanova.GPF.perm(Xsp0, groups, B)
+model0.fanova.perm <- fanova.GPF.perm(Xsp0, groups, 200)
 pvals.0 <- model0.fanova.perm$pvalues
 good_categories.0 <- names(which(pvals.0 <= alpha))
 good_categories.0.ind <- which(colnames(groups) %in% good_categories.0)
@@ -213,7 +213,7 @@ good_categories.0.ind <- which(colnames(groups) %in% good_categories.0)
 
 ### fourth round
 groups.reduced.0 <- groups[,good_categories.0.ind]
-model0.fanova.perm <- fanova.GPF.perm(Xsp0, groups.reduced.0, 1000)
+model0.fanova.perm <- fanova.GPF.perm(Xsp0, groups.reduced.0, B)
 pvals.0.reduced <- model0.fanova.perm$pvalues
 good_categories.0 <- names(which(pvals.0.reduced <= alpha/length(pvals.0.reduced)))
 good_categories.0.ind <- which(colnames(groups) %in% good_categories.0)
