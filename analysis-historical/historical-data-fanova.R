@@ -151,7 +151,7 @@ fanova.GPF.perm <- function(data, groups, B) {
   
   output <- list(F.0=T0, F.perm=T_stat, pvalues=pvalues)
 }
-B <- 100
+B <- 1000
 
 
 #### On the derivative ----
@@ -163,28 +163,28 @@ good_categories.1.ind <- which(colnames(groups) %in% good_categories.1)
 
 ### second round
 groups.reduced.1 <- groups[,good_categories.1.ind]
-model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced, B)
+model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced.1, B)
 pvals.1.reduced <- model.fanova.perm$pvalues
 good_categories.1 <- names(which(pvals.1.reduced <= alpha/length(pvals.1.reduced)))
 good_categories.1.ind <- which(colnames(groups) %in% good_categories.1)
 
 ### third round
 groups.reduced.1 <- groups[,good_categories.1.ind]
-model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced, B)
+model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced.1, B)
 pvals.1.reduced <- model.fanova.perm$pvalues
 good_categories.1 <- names(which(pvals.1.reduced <= alpha/length(pvals.1.reduced)))
 good_categories.1.ind <- which(colnames(groups) %in% good_categories.1)
 
 ### fourth round
 groups.reduced.1 <- groups[,good_categories.1.ind]
-model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced, B)
+model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced.1, B)
 pvals.1.reduced <- model.fanova.perm$pvalues
 good_categories.1 <- names(which(pvals.1.reduced <= alpha/length(pvals.1.reduced)))
 good_categories.1.ind <- which(colnames(groups) %in% good_categories.1)
 
 ### fifth round
 groups.reduced.1 <- groups[,good_categories.1.ind]
-model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced, 1000)
+model.fanova.perm <- fanova.GPF.perm(Xsp1, groups.reduced.1, B)
 pvals.1.reduced <- model.fanova.perm$pvalues
 good_categories.1 <- names(which(pvals.1.reduced <= alpha/length(pvals.1.reduced)))
 good_categories.1.ind <- which(colnames(groups) %in% good_categories.1)
@@ -254,7 +254,7 @@ fanova.GPF.bootstrap <- function(data, groups, B, alpha) {
   CI.RP.L <- aperm(CI.RP.L, c(3,1,2))
   rownames(CI.RP.L) <- c("lwr", "lvl", "upr")
   
-  output <- list(Estimate=L.obs, Estimate.boot=T.boot.L, CI.RP=CI.RP.L, pvalues=pvalues)
+  output <- list(Estimate=L.obs, Estimate.boot=T.boot.L, CI.RP=CI.RP.L)
 }
 
 # functions
@@ -271,8 +271,8 @@ CI.1 <- model.fanova.boot.1$CI.RP
 
 
 # Plots -----------------------------------------------------------------------
-cat <- 4
-ylim <- c(min(CI.1[,,cat], model.fanova$mu), max(CI.1[,,cat], model1.fanova$mu))
+cat <- 1
+ylim <- c(min(CI.1[,,cat], model1.fanova$mu), max(CI.1[,,cat], model1.fanova$mu))
 
 plot(t, CI.1[2,,cat], type='l', ylim=ylim, col="#2050A8", lwd=2)
 lines(t, CI.1[1,,cat], col="#2050A8", lty=2)
@@ -331,8 +331,8 @@ plot_cat_effects <- function(mu, CI, type, category_name) {
 }
 
 cat.ind <- 1
-cat.name <- names(CI[1,1,])[cat.ind]
-plot_cat_effects(model.fanova$mu, CI[,,cat.ind], 1, cat.name)
+cat.name <- names(CI.1[1,1,])[cat.ind]
+plot_cat_effects(model1.fanova$mu, CI.1[,,cat.ind], 1, cat.name)
 
 for (cat.ind in 1:dim(CI.0)[3]) {
   cat.name <- names(CI.0[1,1,])[cat.ind]
@@ -348,6 +348,9 @@ for (cat.ind in 1:dim(CI.1)[3]) {
 good_categories <- intersect(good_categories.0, good_categories.1)
 good_categories
 
-
+# > good_categories
+# [1] "Economic"           "Fantasy"            "Medieval"           "Territory.Building" "Civilization"      
+# [6] "Children.s.Game"    "City.Building"      "Exploration"        "Farming"            "Science.Fiction"   
+# [11] "Fighting"           "Wargame"            "Novel.based"        "Deduction"       
 
 
