@@ -189,9 +189,16 @@ good_categories <- intersect(good_categories.0, good_categories.1)
 covariates.good <- paste(good_categories, collapse=" + ")
 good_categories
 
+# > good_categories
+# [1] "Economic"               "Fantasy"                "Medieval"               "Ancient"               
+# [5] "Territory.Building"     "Civilization"           "City.Building"          "Exploration"           
+# [9] "Farming"                "Bluffing"               "Science.Fiction"        "Collectible.Components"
+# [13] "Fighting"               "Print...Play"           "Renaissance"            "Horror"                
+# [17] "Novel.based"            "Aviation...Flight"      "Real.time"              "Book"  
+
 
 ## Multi-way ANOVA with Hypograph, with interactions ----
-cat <- good_categories[1]
+cat <- good_categories[20]
 interactions <- c()
 for (other_cat in good_categories) {
   newcomb <- paste(cat, other_cat, sep=":")
@@ -200,19 +207,107 @@ for (other_cat in good_categories) {
 covariates.int <- paste(interactions, collapse=" + ")
 covariates.winteractions <- paste(covariates.good, covariates.int, sep=" + ")
 
-model1.interactions.formula <- as.formula(paste("modified_hypograph_index.1", covariates.winteractions, sep=" ~ "))
-model1.interactions.anova <- aov(model1.interactions.formula, data=data)
-summ1.interactions <- summary(model1.interactions.anova)
-summ1.interactions
 
+### functions ----
 model0.interactions.formula <- as.formula(paste("modified_hypograph_index.0", covariates.winteractions, sep=" ~ "))
 model0.interactions.anova <- aov(model0.interactions.formula, data=data)
 summ0.interactions <- summary(model0.interactions.anova)
 summ0.interactions
 
-# Economic:Trains, Economic:Territory.Building
+# Economic:Territory.Building
+# Medieval:Ancient, Medieval:Renaissance
+# Ancient:City.Building
+# Territory.Building:Exploration, Territory.Building:Print...Play
+# Exploration:Print...Play
+# Science.Fiction:Collectible.Components
+# Print...Play:Real.time
+
+
+### derivatives ----
+model1.interactions.formula <- as.formula(paste("modified_hypograph_index.1", covariates.winteractions, sep=" ~ "))
+model1.interactions.anova <- aov(model1.interactions.formula, data=data)
+summ1.interactions <- summary(model1.interactions.anova)
+summ1.interactions
+
 # Aviation...Flight è significativo solo nella versione permutational per le derivate
 
+# Fantasy:Fighting
+# Medieval:Ancient
+# Territory.Building:Farming, Territory.Building:Bluffing, Territory.Building:Print...Play
+# Civilization:City.Building
+# Exploration:Print...Play
+# Bluffing:Horror
+# Collectible.Components:Fighting, Collectible.Components:Aviation...Flight
+
+
+## Permutational multi-way ANOVA with Hypograph, with interactions ----
+interactions.0 <- c("Economic:Territory.Building",
+                  "Medieval:Ancient", "Medieval:Renaissance",
+                  "Ancient:City.Building",
+                  "Territory.Building:Exploration", "Territory.Building:Print...Play",
+                  "Exploration:Print...Play",
+                  "Science.Fiction:Collectible.Components",
+                  "Print...Play:Real.time")
+
+interactions.1 <- c("Fantasy:Fighting",
+                    "Medieval:Ancient",
+                    "Territory.Building:Farming", "Territory.Building:Bluffing", "Territory.Building:Print...Play",
+                    "Civilization:City.Building", 
+                    "Exploration:Print...Play", 
+                    "Bluffing:Horror",
+                    "Collectible.Components:Fighting", "Collectible.Components:Aviation...Flight")
+
+interactions <- union(interactions.0, interactions.1)
+
+groups.reduced <- groups[, which(colnames(groups) %in% good_categories)]
+
+p <- length(good_categories) + length(interactions)
+
+permutational_anova.interactions <- function(y, groups, interactions, B) {
+  covariates.alone <- paste(colnames(groups), collapse=" + ")
+  covariates.interactions <- paste(interactions, collapse=" + ")
+  covariates <- paste(covariates.alone, covariates.interactions, sep=" + ")
+  p <- ncol(groups) + length(interactions)
+  
+  model.formula <- as.formula(paste("y", covariates, sep=" ~ "))
+  model <- aov(model.formula, data=groups)
+  summ <- summary(model)
+  T0 <- summ[[1]]$`F value`[1:p]
+  names(T0) <- c(colnames(groups), interactions)
+
+  T_stat <- matrix(nrow=B, ncol=p)
+  colnames(T_stat) <- names(T0)
+  
+  pb <- progress_bar$new(format="  processing [:bar] :percent eta: :eta", total=B, clear=F)
+  set.seed(seed)
+  for(perm in 1:B){
+    # Permutation:
+    permutation <- sample(1:length(y))
+    y_perm <- y[permutation]
+    model.formula.perm <- as.formula(paste("y_perm", covariates, sep=" ~ "))
+    model.perm <- aov(model.formula.perm, data=groups)
+    summ.perm <- summary(model.perm)
+
+    # Test statistic:
+    T_stat[perm,] <- summ.perm[[1]]$`F value`[1:p]
+
+    pb$tick()
+  }
+
+  pvalues <- numeric(length(T0))
+  for (i in 1:length(T0)) {
+    pvalues[i] <- sum(T_stat[,i] >= T0[i])/B
+  }
+  names(pvalues) <- names(T0)
+
+  output <- list(T0=T0, T_stat=T_stat, pvalues=pvalues)
+}
+
+anova0.interactions <- permutational_anova.interactions(modified_hypograph_index.0, groups.reduced, interactions, B)
+which(anova0.interactions$pvalues <= alpha/p)
+
+anova1.interactions <- permutational_anova.interactions(modified_hypograph_index.1, groups.reduced, interactions, B)
+which(anova1.interactions$pvalues <= alpha/p)
 
 
 
