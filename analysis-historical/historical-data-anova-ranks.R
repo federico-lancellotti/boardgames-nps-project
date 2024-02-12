@@ -158,7 +158,7 @@ permutational_anova <- function(y, groups, B) {
   pvalues <- rowMeans(t(T_stat) >= T0)
   names(pvalues) <- colnames(groups)
   
-  output <- list(T0=T0, T_stat=T_stat, pvalues=pvalues)
+  output <- list(T0=T0, T_stat=T_stat, pvalues=pvalues, coefficients=model$coefficients)
 }
 
 ### functions ----
@@ -172,7 +172,8 @@ good_categories.0 <- names(which(anova0.reduced$pvalues <= alpha/ncol(groups0.re
 groups0.reduced <- groups[, which(colnames(groups) %in% good_categories.0)]
 anova0.reduced <- permutational_anova(modified_hypograph_index.0, groups0.reduced, B)
 
-good_categories.0 <- names(which(anova0.reduced$pvalues <= alpha/ncol(groups0.reduced)))
+good_categories.0 <- names(which(anova0.reduced$pvalues <= alpha/ncol(groups0.reduced) 
+                                 & anova0.reduced$coefficients[-1] >= 0))
 good_categories.0
 
 ### derivatives ----
@@ -182,7 +183,9 @@ good_categories.1 <- names(which(anova1$pvalues <= alpha/ncol(groups)))
 groups1.reduced <- groups[, which(colnames(groups) %in% good_categories.1)]
 anova1.reduced <- permutational_anova(modified_hypograph_index.1, groups1.reduced, B)
 
-good_categories.1 <- names(which(anova1.reduced$pvalues <= alpha/ncol(groups1.reduced)))
+good_categories.1 <- names(which(anova1.reduced$pvalues <= alpha/ncol(groups1.reduced)
+                                 & anova1.reduced$coefficients[-1] >= 0))
+good_categories.1
 
 ### intersection ----
 good_categories <- intersect(good_categories.0, good_categories.1)
@@ -190,15 +193,14 @@ covariates.good <- paste(good_categories, collapse=" + ")
 good_categories
 
 # > good_categories
-# [1] "Economic"               "Fantasy"                "Medieval"               "Ancient"               
-# [5] "Territory.Building"     "Civilization"           "City.Building"          "Exploration"           
-# [9] "Farming"                "Bluffing"               "Science.Fiction"        "Collectible.Components"
-# [13] "Fighting"               "Print...Play"           "Renaissance"            "Horror"                
-# [17] "Novel.based"            "Aviation...Flight"      "Real.time"              "Book"  
+# [1] "Economic"           "Fantasy"            "Medieval"           "Ancient"            "Territory.Building"
+# [6] "Civilization"       "City.Building"      "Exploration"        "Farming"            "Bluffing"          
+# [11] "Science.Fiction"    "Fighting"           "Renaissance"        "Horror"             "Novel.based"       
+# [16] "Aviation...Flight"  "Real.time" 
 
 
 ## Multi-way ANOVA with Hypograph, with interactions ----
-cat <- good_categories[20]
+cat <- good_categories[17]
 interactions <- c()
 for (other_cat in good_categories) {
   newcomb <- paste(cat, other_cat, sep=":")
@@ -206,7 +208,6 @@ for (other_cat in good_categories) {
 }
 covariates.int <- paste(interactions, collapse=" + ")
 covariates.winteractions <- paste(covariates.good, covariates.int, sep=" + ")
-
 
 ### functions ----
 model0.interactions.formula <- as.formula(paste("modified_hypograph_index.0", covariates.winteractions, sep=" ~ "))
@@ -217,11 +218,8 @@ summ0.interactions
 # Economic:Territory.Building
 # Medieval:Ancient, Medieval:Renaissance
 # Ancient:City.Building
-# Territory.Building:Exploration, Territory.Building:Print...Play
-# Exploration:Print...Play
-# Science.Fiction:Collectible.Components
-# Print...Play:Real.time
-
+# Territory.Building:Exploration
+# Fighting:Horror
 
 ### derivatives ----
 model1.interactions.formula <- as.formula(paste("modified_hypograph_index.1", covariates.winteractions, sep=" ~ "))
@@ -233,31 +231,31 @@ summ1.interactions
 
 # Fantasy:Fighting
 # Medieval:Ancient
-# Territory.Building:Farming, Territory.Building:Bluffing, Territory.Building:Print...Play
+# Ancient:City.Building
+# Territory.Building:Farming, Territory.Building:Bluffing, Territory.Building:Exploration
 # Civilization:City.Building
-# Exploration:Print...Play
 # Bluffing:Horror
-# Collectible.Components:Fighting, Collectible.Components:Aviation...Flight
+# Bluffing:Science.Fiction
+# Medieval:Fighting, City.Building:Fighting
 
 
 ## Permutational multi-way ANOVA with Hypograph, with interactions ----
 interactions.0 <- c("Economic:Territory.Building",
-                  "Medieval:Ancient", "Medieval:Renaissance",
-                  "Ancient:City.Building",
-                  "Territory.Building:Exploration", "Territory.Building:Print...Play",
-                  "Exploration:Print...Play",
-                  "Science.Fiction:Collectible.Components",
-                  "Print...Play:Real.time")
+                    "Medieval:Ancient", "Medieval:Renaissance",
+                    "Ancient:City.Building",
+                    "Territory.Building:Exploration",
+                    "Fighting:Horror")
 
 interactions.1 <- c("Fantasy:Fighting",
                     "Medieval:Ancient",
-                    "Territory.Building:Farming", "Territory.Building:Bluffing", "Territory.Building:Print...Play",
-                    "Civilization:City.Building", 
-                    "Exploration:Print...Play", 
+                    "Ancient:City.Building",
+                    "Territory.Building:Farming", "Territory.Building:Bluffing", "Territory.Building:Exploration",
+                    "Civilization:City.Building",
                     "Bluffing:Horror",
-                    "Collectible.Components:Fighting", "Collectible.Components:Aviation...Flight")
+                    "Bluffing:Science.Fiction",
+                    "Medieval:Fighting", "City.Building:Fighting")
 
-interactions <- union(interactions.0, interactions.1)
+interactions <- intersect(interactions.0, interactions.1)
 
 groups.reduced <- groups[, which(colnames(groups) %in% good_categories)]
 
@@ -300,14 +298,14 @@ permutational_anova.interactions <- function(y, groups, interactions, B) {
   }
   names(pvalues) <- names(T0)
 
-  output <- list(T0=T0, T_stat=T_stat, pvalues=pvalues)
+  output <- list(T0=T0, T_stat=T_stat, pvalues=pvalues, coefficients=model$coefficients)
 }
 
 anova0.interactions <- permutational_anova.interactions(modified_hypograph_index.0, groups.reduced, interactions, B)
-which(anova0.interactions$pvalues <= alpha/p)
+which(anova0.interactions$pvalues <= alpha/p & anova0.interactions$coefficients[-1] >= 0)
 
 anova1.interactions <- permutational_anova.interactions(modified_hypograph_index.1, groups.reduced, interactions, B)
-which(anova1.interactions$pvalues <= alpha/p)
+which(anova1.interactions$pvalues <= alpha/p & anova1.interactions$coefficients[-1] >= 0)
 
 
 
