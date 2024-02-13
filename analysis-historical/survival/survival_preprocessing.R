@@ -1105,7 +1105,7 @@ write.csv(survival_1, file = "survival_1month.csv", row.names = FALSE)
 # Outliers:
 survival_1month <- read.csv("C:/Users/Utente/Desktop/NPS/Projects/git_clone/boardgames-nps-project/survival/survival_1month.csv")
 View(survival_1month)
-covariates.MCD <- c("maxplayers", "playingtime", "Year")
+covariates.MCD <- c("maxplayers", "playingtime", "Year", "dimpublisher")
 covariates.MCD.ind <- which(colnames(survival_1month) %in% covariates.MCD)
 covariates.MCD.ind
 
@@ -1121,8 +1121,9 @@ data.out <- survival_1month[-ind_out_obs,]
 range(data.out$Year)
 range(data.out$playingtime)
 range(data.out$maxplayers)
+range(data.out$dimpublisher)
 
-write.csv(survival_1month, file = "survival_final.csv", row.names = FALSE)
+write.csv(data.out, file = "survival_final.csv", row.names = FALSE)
 
 #%%%%%%%%%%%%%%%%
 
