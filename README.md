@@ -2,9 +2,9 @@
 A Nonparametric Statistics project by Stefania Colombo, Silvia D'Amicantonio, Federico Lancellotti.
 
 ## Data
-The snapshot data can be found here: https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-01-25/readme.md
-The raw historical data can be found here: https://github.com/beefsack/bgg-ranking-historicals
-The preprocessed historical data can be found here: https://shorturl.at/hzGV8
+- The snapshot data can be found here: https://github.com/rfordatascience/tidytuesday/blob/master/data/2022/2022-01-25/readme.md
+- The raw historical data can be found here: https://github.com/beefsack/bgg-ranking-historicals
+- The preprocessed historical data can be found here: https://shorturl.at/hzGV8
 
 ## Analysis
 The workflow is divided in three major parts: 
